@@ -16,6 +16,8 @@ public final class PatchSettings {
     private static final String HIDE_FLEX = "hide_flex";
     private static final String HIDE_LAUNCHPAD = "hide_launchpad";
     private static final String REMOVE_CRINGE = "remove_cringe";
+    private static final String BATCH_GBIT = "batch_gbit";
+    private static volatile boolean batchGbit = true;
     private static volatile boolean removeCringe = true;
     private static Context application;
     private static final String HIDDEN_TILES = "hidden_launchpad_tiles";
@@ -30,6 +32,7 @@ public final class PatchSettings {
         application = context;
         preferences = context.getSharedPreferences("morphe_patches", Context.MODE_PRIVATE);
         removeCringe = preferences.getBoolean(REMOVE_CRINGE, true);
+        batchGbit = preferences.getBoolean(BATCH_GBIT, true);
         hideFlex = preferences.getBoolean(HIDE_FLEX, true);
         hideLaunchpad = preferences.getBoolean(HIDE_LAUNCHPAD, false);
         hiddenTiles = cleanIds(preferences.getStringSet(HIDDEN_TILES, Collections.emptySet()));
@@ -84,6 +87,8 @@ public final class PatchSettings {
 
     static boolean isCringeRemoved() { return preferences != null && removeCringe; }
 
+    static boolean isBatchEnabled() { return batchGbit; }
+
     static boolean isLaunchpadHidden() { return hideLaunchpad; }
 
     static Set<String> hiddenTiles() { return hiddenTiles; }
@@ -96,14 +101,15 @@ public final class PatchSettings {
         return Collections.unmodifiableSet(result);
     }
 
-    static boolean saveSettings(boolean flex, boolean launchpad, Set<String> ids, boolean cringe) {
+    static boolean saveSettings(boolean flex, boolean launchpad, Set<String> ids, boolean cringe, boolean batch) {
         Set<String> cleaned = cleanIds(ids);
         Map<String, ?> before = preferences.getAll();
         if (!preferences.edit().putBoolean(HIDE_FLEX, flex).putBoolean(HIDE_LAUNCHPAD, launchpad)
-                .putStringSet(HIDDEN_TILES, new HashSet<>(cleaned)).putBoolean(REMOVE_CRINGE, cringe).commit()) {
+                .putStringSet(HIDDEN_TILES, new HashSet<>(cleaned)).putBoolean(REMOVE_CRINGE, cringe)
+                .putBoolean(BATCH_GBIT, batch).commit()) {
             // Android updates its memory cache even when the disk commit fails.
             SharedPreferences.Editor restore = preferences.edit();
-            for (String key : new String[]{HIDE_FLEX, HIDE_LAUNCHPAD, HIDDEN_TILES, REMOVE_CRINGE}) {
+            for (String key : new String[]{HIDE_FLEX, HIDE_LAUNCHPAD, HIDDEN_TILES, REMOVE_CRINGE, BATCH_GBIT}) {
                 Object old = before.get(key);
                 if (old instanceof Boolean) restore.putBoolean(key, (Boolean) old);
                 else if (old instanceof Set) restore.putStringSet(key, new HashSet<>((Set<String>) old));
@@ -113,6 +119,7 @@ public final class PatchSettings {
             return false;
         }
         removeCringe = cringe;
+        batchGbit = batch;
         hideFlex = flex;
         hideLaunchpad = launchpad;
         hiddenTiles = cleaned;

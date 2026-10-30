@@ -21,13 +21,18 @@ public final class PatchesActivity extends AppCompatActivity {
     private static final String ERROR = "morphe.save_error";
     private static final String LAUNCHPAD = "morphe.launchpad_draft";
     private static final String CRINGE = "morphe.remove_cringe_draft";
+    private static final String BATCH = "morphe.batch_gbit_draft";
+    private static final String EXPANDED = "morphe.tiles_expanded";
     private CompoundButton cringe;
+    private CompoundButton batch;
     private static final String HIDDEN = "morphe.hidden_tiles_draft";
     private CompoundButton toggle;
     private CompoundButton launchpad;
     private final Set<String> hidden = new HashSet<>();
     private final Map<String, CompoundButton> choices = new LinkedHashMap<>();
     private View reset;
+    private View picker;
+    private TextView manage;
     private View apply;
     private TextView error;
 
@@ -79,12 +84,33 @@ public final class PatchesActivity extends AppCompatActivity {
             cringe.setOnCheckedChangeListener((button, checked) -> updateActions());
             cringeRow.setOnClickListener(view -> cringe.toggle());
         }
+        View batchRow = findViewById(resource("morphe_batch_setting_row", "id"));
+        CompoundButton batchSwitch = batchRow.findViewById(resource("swiToggle", "id"));
+        batchSwitch.setSaveEnabled(false);
+        if (BatchGbitActivity.isIncluded()) {
+            findViewById(resource("morphe_batch_panel", "id")).setVisibility(View.VISIBLE);
+            TextView batchTitle = batchRow.findViewById(resource("txtTitle", "id"));
+            batchTitle.setMaxLines(Integer.MAX_VALUE);
+            batchTitle.setEllipsize(null);
+            batch = batchSwitch;
+            batch.setChecked(state == null ? PatchSettings.isBatchEnabled()
+                : state.getBoolean(BATCH, PatchSettings.isBatchEnabled()));
+            batch.setOnCheckedChangeListener((button, checked) -> updateActions());
+            batchRow.setOnClickListener(view -> batch.toggle());
+        }
         hidden.addAll(PatchSettings.hiddenTiles());
         if (state != null && state.containsKey(HIDDEN)) {
             hidden.clear();
             hidden.addAll(state.getStringArrayList(HIDDEN));
         }
         reset = findViewById(resource("morphe_launchpad_reset", "id"));
+        picker = findViewById(resource("morphe_launchpad_picker", "id"));
+        picker.setVisibility(state != null && state.getBoolean(EXPANDED) ? View.VISIBLE : View.GONE);
+        manage = findViewById(resource("morphe_launchpad_manage", "id"));
+        manage.setOnClickListener(view -> {
+            picker.setVisibility(picker.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+            updateActions();
+        });
         addChoices();
         updateActions();
         toggle.setOnCheckedChangeListener((button, checked) -> updateActions());
@@ -104,6 +130,8 @@ public final class PatchesActivity extends AppCompatActivity {
         state.putBoolean(DRAFT, toggle.isChecked());
         state.putBoolean(LAUNCHPAD, launchpad.isChecked());
         if (cringe != null) state.putBoolean(CRINGE, cringe.isChecked());
+        if (batch != null) state.putBoolean(BATCH, batch.isChecked());
+        state.putBoolean(EXPANDED, picker.getVisibility() == View.VISIBLE);
         state.putStringArrayList(HIDDEN, new ArrayList<>(hidden));
         if (error.getVisibility() == View.VISIBLE) state.putString(ERROR, error.getText().toString());
     }
@@ -115,7 +143,8 @@ public final class PatchesActivity extends AppCompatActivity {
             return;
         }
         if (!PatchSettings.saveSettings(toggle.isChecked(), launchpad.isChecked(), hidden,
-                cringe == null ? PatchSettings.isCringeRemoved() : cringe.isChecked())) {
+                cringe == null ? PatchSettings.isCringeRemoved() : cringe.isChecked(),
+                batch == null ? PatchSettings.isBatchEnabled() : batch.isChecked())) {
             showError("Could not save your changes. Try again.");
             return;
         }
@@ -163,8 +192,11 @@ public final class PatchesActivity extends AppCompatActivity {
         apply.setEnabled(toggle.isChecked() != PatchSettings.isFlexHidden()
             || launchpad.isChecked() != PatchSettings.isLaunchpadHidden()
             || !hidden.equals(PatchSettings.hiddenTiles())
+            || batch != null && batch.isChecked() != PatchSettings.isBatchEnabled()
             || cringe != null && cringe.isChecked() != PatchSettings.isCringeRemoved());
         reset.setEnabled(!hidden.isEmpty());
+        manage.setText((picker.getVisibility() == View.VISIBLE ? "Close tile list" : "Choose tiles to hide")
+            + " · " + hidden.size() + " selected");
     }
 
     private void showError(String message) {

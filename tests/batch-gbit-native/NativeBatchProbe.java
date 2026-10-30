@@ -221,6 +221,25 @@ public final class NativeBatchProbe extends Instrumentation {
             require(Boolean.TRUE.equals(call(activity,"terminalBatch")),"Completed results must stop automatic polling");
             require("New batch".contentEquals(((Button)get(activity,"secondary")).getText()),"Completed results need explicit New batch");
             require(((TextView)get(activity,"description")).getText().toString().contains("complete"),"Completed result must win over service cleanup");
+            SharedPreferences preferences=getTargetContext().getSharedPreferences("morphe_patches",Context.MODE_PRIVATE);
+            boolean present=preferences.contains("batch_gbit"),enabled=preferences.getBoolean("batch_gbit",true);
+            Class<?> settings=getTargetContext().getClassLoader().loadClass("app.local.extension.curve.PatchSettings");
+            try {
+                require(preferences.edit().putBoolean("batch_gbit",false).commit(),"Could not disable Batch fixture");
+                settings.getMethod("initialize",Context.class).invoke(null,getTargetContext());
+                call(activity,"renderProgress");
+                require(!((Button)get(activity,"secondary")).isEnabled() && ((Button)get(activity,"primary")).isEnabled(),"Disabled feature must keep results open but block New batch");
+                call(activity,"startBatch");
+                require(((TextView)get(activity,"error")).getText().toString().contains("turned off"),"Disabled feature must reject submission before any request or permission prompt");
+                batch.put("status","running"); call(activity,"renderProgress");
+                require(((Button)get(activity,"secondary")).isEnabled() && ((Button)get(activity,"secondary")).getText().toString().startsWith("Stop"),"Disabling must retain the active batch stop control");
+            } finally {
+                SharedPreferences.Editor restore=preferences.edit();
+                if(present) restore.putBoolean("batch_gbit",enabled); else restore.remove("batch_gbit");
+                require(restore.commit(),"Could not restore Batch fixture");
+                settings.getMethod("initialize",Context.class).invoke(null,getTargetContext());
+                batch.put("status","complete"); call(activity,"renderProgress");
+            }
             } finally { running.setBoolean(null,previous); }
         });
         screenshot("batch-progress.png");

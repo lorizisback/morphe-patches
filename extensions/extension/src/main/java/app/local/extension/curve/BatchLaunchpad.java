@@ -12,6 +12,11 @@ final class BatchLaunchpad {
     static List<?> add(List<?> items) {
         if(!BatchGbitActivity.isIncluded()) return items;
         try {
+            if(!PatchSettings.isBatchEnabled()) {
+                List<Object> visible=new ArrayList<>();
+                for(Object item:items) if(!matches(item)) visible.add(item);
+                return visible;
+            }
             for(Object item:items) if(matches(item)) return items;
             Class<?> action=Class.forName("com.curve.launchpad.model.LaunchpadAction");
             Object button=Class.forName("com.curve.launchpad.model.LaunchpadItem$Button")
@@ -24,6 +29,7 @@ final class BatchLaunchpad {
         if(!BatchGbitActivity.isIncluded()) return false;
         try {
             if(!matches(item)) return false;
+            if(!PatchSettings.isBatchEnabled()) return true;
             Activity activity=(Activity)BatchCurve.call(fragment,"requireActivity");
             activity.startActivity(new Intent(activity,BatchGbitActivity.class)); return true;
         } catch(Exception e) { throw new IllegalStateException("Could not open Batch GBIT",e); }

@@ -64,6 +64,7 @@ public final class BatchGbitActivity extends AppCompatActivity {
             boolean existing=BatchStore.showResults(batch,getIntent().getStringExtra(EXTRA_BATCH_ID));
             if(existing) { step=3; getIntent().putExtra(EXTRA_BATCH_ID,batch.getString("id")); }
             if(!existing) {
+                requireEnabled();
                 rows=BatchCurve.purchases(BatchCurve.history());
                 if(rows.length()>0) {
                     Integer days=null;
@@ -197,6 +198,7 @@ public final class BatchGbitActivity extends AppCompatActivity {
         primary.setEnabled(card!=null && supported.getOrDefault(card,0)==selected.size());
     }
     private void startBatch() {
+        try { requireEnabled(); } catch(Exception disabled) { error.setText(disabled.getMessage()); return; }
         if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED) { requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},7241); return; }
         if(!getSystemService(NotificationManager.class).areNotificationsEnabled()) { error.setText("Enable Curve notifications in Android settings to follow background progress."); return; }
         final JSONObject request;
@@ -211,6 +213,7 @@ public final class BatchGbitActivity extends AppCompatActivity {
         work(()-> {
             BatchCurve.account(request.getString("account"));
             synchronized(BatchGbitService.LOCK) {
+                requireEnabled();
                 JSONObject old=new BatchStore(this).read();
                 if(BatchGbitService.running || old!=null && !BatchStore.isTerminal(old)) throw new Exception("Review the existing batch first.");
                 batch=request;
@@ -253,10 +256,14 @@ public final class BatchGbitActivity extends AppCompatActivity {
         try { terminal=BatchStore.isTerminal(batch); } catch(JSONException e) { error.setText("Could not read saved outcomes."); }
         final boolean reviewed=terminal;
         secondary.setText(active?"Stop after current transaction":reviewed?"New batch":"Refresh outcomes");
+        secondary.setEnabled(!reviewed || PatchSettings.isBatchEnabled());
         secondary.setOnClickListener(v->{ if(active) startService(new Intent(this,BatchGbitService.class).setAction("stop")); else if(reviewed) newBatch(); else reconcile(); });
     }
     private void newBatch() {
         selected.clear(); card=null; getIntent().removeExtra(EXTRA_BATCH_ID); recreate();
+    }
+    private static void requireEnabled() throws Exception {
+        if(!PatchSettings.isBatchEnabled()) throw new Exception("Batch GBIT is turned off. Enable it in Patches to start a new batch.");
     }
     private void reconcile() {
         work(()-> {
