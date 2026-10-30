@@ -9,12 +9,25 @@ import org.json.*;
 
 /** Version-pinned bridge to Curve's authenticated services. Never runs on the UI thread. */
 final class BatchCurve {
+    static void checkInterrupted() throws InterruptedException {
+        if(Thread.currentThread().isInterrupted()) throw new InterruptedException("Batch request cancelled.");
+    }
+    private static Exception requestFailure(Throwable cause) {
+        if(cause instanceof InterruptedException || cause instanceof CancellationException) {
+            Thread.currentThread().interrupt();
+            if(cause instanceof InterruptedException) return (InterruptedException)cause;
+            InterruptedException cancelled=new InterruptedException("Batch request cancelled.");
+            cancelled.initCause(cause); return cancelled;
+        }
+        return new Exception("Curve request failed.",cause);
+    }
     static Object call(Object receiver, String name, Object... args) throws Exception {
+        checkInterrupted();
         for (Method m : receiver.getClass().getMethods()) {
             if (!m.getName().equals(name) || m.getParameterCount() != args.length) continue;
             boolean fits = true;
             for (int i=0;i<args.length;i++) if (args[i]!=null && !box(m.getParameterTypes()[i]).isInstance(args[i])) fits=false;
-            if (fits) { try { return m.invoke(receiver,args); } catch (InvocationTargetException e) { throw new Exception("Curve request failed",e.getCause()); } }
+            if (fits) { try { return m.invoke(receiver,args); } catch (InvocationTargetException e) { throw requestFailure(e.getCause()); } }
         }
         throw new NoSuchMethodException(name);
     }
@@ -30,6 +43,7 @@ final class BatchCurve {
         return call(scope,"b",type,null,null);
     }
     static Object suspend(Object receiver,String name,Object... args) throws Exception {
+        checkInterrupted();
         Class<?> cont=Class.forName("kotlin.coroutines.Continuation");
         BlockingQueue<Object> answer=new ArrayBlockingQueue<>(1);
         Object empty=Class.forName("kotlin.coroutines.g").getField("a").get(null);
@@ -44,10 +58,11 @@ final class BatchCurve {
         Object[] full=Arrays.copyOf(args,args.length+1); full[args.length]=callback;
         Object result=call(receiver,name,full);
         if(result!=null && result.getClass().getName().equals("zo2")) {
-            result=answer.poll(90,TimeUnit.SECONDS);
+            try { result=answer.poll(90,TimeUnit.SECONDS); }
+            catch(InterruptedException cancelled) { Thread.currentThread().interrupt(); throw cancelled; }
             if(result==null) throw new TimeoutException("Request outcome needs review.");
         }
-        if(result!=null && result.getClass().getName().equals("wza")) throw new Exception("Curve request failed.");
+        if(result!=null && result.getClass().getName().equals("wza")) throw requestFailure((Throwable)field(result,"a"));
         return result;
     }
     static String account() throws Exception {
@@ -65,10 +80,13 @@ final class BatchCurve {
     }
     static JSONArray purchases(List<?> history) throws Exception {
         JSONArray rows=new JSONArray(); Set<String> ids=new HashSet<>();
+        Object parser=resolve("com.curve.domain.entity.common.DateTimeParser");
         for(Object tx:history) {
             String id=(String)call(tx,"getId");
             if(!"debit".equals(call(tx,"getDirection")) || call(tx,"getGbitDate")!=null || call(tx,"getGbitOriginalCardId")!=null || Boolean.TRUE.equals(call(tx,"getP2p")) || call(tx,"getDeclineReason")!=null || !ids.add(id)) continue;
-            Instant time=ZonedDateTime.parse((String)call(tx,"getTransactionTime")).toInstant();
+            ZonedDateTime parsed=(ZonedDateTime)call(parser,"parseFullDateTimeOrNull",call(tx,"getTransactionTime"));
+            if(parsed==null) continue;
+            Instant time=parsed.toInstant();
             if(time.isBefore(Instant.now().minus(Duration.ofDays(120)))) continue;
             Object amount=call(tx,"getAmountValue"),exponent=call(tx,"getAmountExponent");
             if(amount==null || exponent==null) continue;
@@ -119,10 +137,11 @@ final class BatchCurve {
         }
         return result;
     }
-    static void move(String account,String card,String id) throws Exception {
+    static void move(String account,String card,String id,java.util.function.BooleanSupplier canSubmit) throws Exception {
         final Object useCase;
         try { account(account); useCase=resolve("com.curve.gbit.usecase.GbitSwitchTransactionUseCase"); }
         catch(Exception notSubmitted) { throw new BatchRunner.Rejected("The request was not submitted. Sign in and review your selection."); }
+        if(!canSubmit.getAsBoolean()) throw new BatchRunner.Rejected("The batch stopped before this purchase was submitted. Review your selection.");
         Object result=suspend(useCase,"invoke",card,id);
         if(result.getClass().getName().endsWith("$GbitUnavailableError")) throw new BatchRunner.Rejected("Curve rejected this purchase as unavailable. Review your selection.");
         if(!result.getClass().getName().endsWith("$Success")) throw new Exception("Curve did not confirm the move. Review its outcome before continuing.");

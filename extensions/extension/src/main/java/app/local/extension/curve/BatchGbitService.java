@@ -15,6 +15,9 @@ public final class BatchGbitService extends Service {
     private volatile boolean stop;
     private volatile int latestStartId;
     private ExecutorService executor;
+    private PowerManager.WakeLock wakeLock;
+    private long awakeUntil;
+    private static final long MAX_BATCH_MILLIS=TimeUnit.MINUTES.toMillis(30);
     private static final int NOTICE=7241;
     private static final String CHANNEL="morphe_batch_gbit";
     @Override public void onCreate() {
@@ -36,6 +39,7 @@ public final class BatchGbitService extends Service {
         try {
             batch=store.read();
             if(batch==null || !batch.getString("id").equals(id) || !batch.getString("status").equals("ready")) return;
+            acquireWakeLock();
             BatchRunner.run(batch,new BatchRunner.Transport() {
                 public void account(String id) throws Exception { BatchCurve.account(id); }
                 public void validate(JSONObject b,JSONObject row) throws Exception {
@@ -45,19 +49,34 @@ public final class BatchGbitService extends Service {
                     JSONObject fresh=BatchCurve.quote(BatchCurve.option(BatchCurve.options(b.getString("account"),row.getString("id")),b.getString("card")));
                     if(!fresh.toString().equals(row.getJSONObject("quote").toString())) throw new Exception("Amounts or fees changed. Review your selection.");
                 }
-                public void move(JSONObject b,JSONObject row) throws Exception { BatchCurve.move(b.getString("account"),b.getString("card"),row.getString("id")); }
+                public void move(JSONObject b,JSONObject row) throws Exception { BatchCurve.move(b.getString("account"),b.getString("card"),row.getString("id"),BatchGbitService.this::canSubmit); }
             },store::save,new BatchRunner.Control() {
-                public boolean stopped() { return stop; }
+                public boolean stopped() { return !canSubmit(); }
                 public void progress(JSONObject b) throws Exception { update(b); }
             });
         } catch(Exception e) {
             if(batch!=null) try { batch.put("status","paused").put("message",e.getMessage()==null?"Batch stopped. Review before continuing.":e.getMessage()); store.save(batch); } catch(Exception ignored) { /* Existing journal remains the recovery authority. */ }
         } finally {
+            releaseWakeLock();
             if(batch!=null) try { update(batch); } catch(Exception ignored) { }
             stopForeground(STOP_FOREGROUND_DETACH);
             synchronized(LOCK) { stopSelfResult(latestStartId); running=false; }
             try { BatchCurve.call(BatchCurve.resolve("com.curve.transactions.api.worker.LoadTransactionsWorker"),"invoke"); } catch(Exception ignored) { }
         }
+    }
+    private synchronized void acquireWakeLock() throws InterruptedException {
+        if(stop || Thread.currentThread().isInterrupted()) throw new InterruptedException("Batch stopped before starting.");
+        wakeLock=getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,getPackageName()+":BatchGbit");
+        wakeLock.setReferenceCounted(false);
+        awakeUntil=SystemClock.elapsedRealtime()+MAX_BATCH_MILLIS;
+        wakeLock.acquire(MAX_BATCH_MILLIS);
+    }
+    private synchronized boolean canSubmit() {
+        return !stop && !Thread.currentThread().isInterrupted() && wakeLock!=null && wakeLock.isHeld() && SystemClock.elapsedRealtime()<awakeUntil;
+    }
+    private synchronized void releaseWakeLock() {
+        if(wakeLock!=null && wakeLock.isHeld()) wakeLock.release();
+        wakeLock=null;
     }
     private void update(JSONObject batch) throws JSONException {
         if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED) throw new IllegalStateException("Notification permission changed. Batch paused.");
@@ -78,7 +97,7 @@ public final class BatchGbitService extends Service {
         }
         return b.build();
     }
-    @Override public void onTimeout(int startId,int fgsType) { stop=true; executor.shutdownNow(); stopSelf(); }
-    @Override public void onDestroy() { stop=true; executor.shutdownNow(); super.onDestroy(); }
+    @Override public void onTimeout(int startId,int fgsType) { stop=true; executor.shutdownNow(); releaseWakeLock(); stopSelf(); }
+    @Override public void onDestroy() { stop=true; executor.shutdownNow(); releaseWakeLock(); super.onDestroy(); }
     @Override public IBinder onBind(Intent intent) { return null; }
 }

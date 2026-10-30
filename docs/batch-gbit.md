@@ -6,4 +6,8 @@ Every charge is sequential. An atomic file in noBackupFilesDir records account, 
 
 The notification enters through Curve's normal authentication route. Reopen Batch GBIT from Launchpad to view detailed results. Merchant, amount and card details are omitted from notifications.
 
+Completed results stay available until you choose **New batch**. Another signed-in account may replace a completed or archived journal without seeing its contents; unfinished or uncertain work still requires the owning account's review. Selecting purchases and cards preserves the existing controls, keyboard focus and carousel position. Progress updates retain result rows; completed results stop automatic polling and revalidate the account when reopened. Leaving the selection screen interrupts its eligibility scan and prevents further requests; an already-dispatched native request may still finish.
+
+The service holds a partial wake lock while executing, with a 30-minute upper bound. It stops starting purchases when that bound expires and releases the lock on completion or shutdown. A request already submitted at expiry still requires outcome review. The native Curve date parser handles the REST API's UTC transaction timestamps. See [native regression checks](../tests/batch-gbit-native/README.md) and [offline queue checks](../tests/batch-gbit/README.md).
+
 Never run financial tests against an account without explicit user authorization. Offline checks must cover partial success, changed quotes, interruption and duplicate starts. Visual and bridge checks use only the dedicated signed-out morphe_sample_api36 emulator. Build success alone does not prove live GBIT or background reliability.

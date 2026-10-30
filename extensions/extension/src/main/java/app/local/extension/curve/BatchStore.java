@@ -44,8 +44,11 @@ final class BatchStore {
         synchronized (BatchGbitService.LOCK) {
             JSONObject batch=read();
             if(batch==null) return null;
-            if(!account.equals(batch.getString("account"))) throw new Exception("A batch belongs to a different account. Sign in to that account to review it.");
-            if(!BatchGbitService.running && !batch.getString("status").equals("complete") && !batch.getString("status").equals("archived")) {
+            if(!account.equals(batch.getString("account"))) {
+                if(!BatchGbitService.running && isTerminal(batch)) return null;
+                throw new Exception("A batch belongs to a different account. Sign in to that account to review it.");
+            }
+            if(!BatchGbitService.running && !isTerminal(batch)) {
                 JSONArray rows=batch.getJSONArray("rows");
                 for(int i=0;i<rows.length();i++) if(rows.getJSONObject(i).getString("state").equals("inflight")) rows.getJSONObject(i).put("state","review");
                 batch.put("status","paused");
@@ -53,6 +56,10 @@ final class BatchStore {
             }
             return batch;
         }
+    }
+    static boolean isTerminal(JSONObject batch) throws JSONException {
+        String status=batch.getString("status");
+        return (status.equals("complete") || status.equals("archived")) && !unresolved(batch);
     }
     static boolean unresolved(JSONObject batch) throws JSONException { return BatchRunner.unresolved(batch); }
 }

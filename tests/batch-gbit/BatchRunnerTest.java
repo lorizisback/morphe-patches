@@ -59,6 +59,17 @@ public final class BatchRunnerTest extends Instrumentation {
         require(recovered.getJSONArray("rows").getJSONObject(0).getString("state").equals("review"),"Inactive inflight state must be reviewable without reopening");
         try { store.recover("account-b"); throw new AssertionError("Cross-account recovery"); } catch(Exception expected) { }
         require(store.read().getString("account").equals("account-a"),"Cross-account recovery must preserve journal");
+        for(String terminal:new String[]{"complete","archived"}) {
+            JSONObject finished=batch().put("status",terminal);
+            for(int i=0;i<finished.getJSONArray("rows").length();i++) finished.getJSONArray("rows").getJSONObject(i).put("state","moved");
+            store.save(finished);
+            require(store.recover("account-b")==null,"Terminal journal must not block or expose another account: "+terminal);
+            require(store.read().toString().equals(finished.toString()),"Ignoring another account's result must preserve it");
+            require(store.recover("account-a").getString("status").equals(terminal),"Owner must retain terminal results");
+            finished.getJSONArray("rows").getJSONObject(0).put("state","review"); store.save(finished);
+            try { store.recover("account-b"); throw new AssertionError("Uncertain terminal journal crossed accounts"); } catch(Exception expected) { }
+            require(store.recover("account-a").getString("status").equals("paused"),"Contradictory terminal journal must require review");
+        }
         new android.util.AtomicFile(base).delete();
     }
     @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
