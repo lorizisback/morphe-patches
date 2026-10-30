@@ -45,15 +45,40 @@ Keep the template's semantic-release workflow for future publication. Do not han
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
+> **[v1.0.0](https://github.com/lorizisback/morphe-patches/releases/tag/v1.0.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;6 patches total
+<details open>
+<summary>📦 Curve Pay&nbsp;&nbsp;•&nbsp;&nbsp;5 patches</summary>
+<br>
 
-<!-- Do not modify this section by hand. The patch list is generated when release.yml creates a new release.
-     
-     If you wish for the patches list to be collapsed, then remove the word 'EXPANDED' from the comment tag above.
+**🎯 Supported versions:**
 
-     If you wish to manually keep this list updated then remove the PATCHES_START and PATCHES_END 
-     comment blocks entirely. -->
+| 5.63.0 |
+| :---: |
 
-The patch list will be generated on the first release.
+| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
+|----------|----------------|-----------|
+| [Accept any signing certificate](#accept-any-signing-certificate) | Disables Curve's local signing-certificate mismatch check so any APK signing key can be used. Other device checks, login and server integrity remain unchanged. |  |
+| [Disable optional telemetry](#disable-optional-telemetry) | Disables known analytics, marketing, crash and performance reporting. Removes Braze promotions and attribution. Account, payment, security and support services still communicate with their servers. |  |
+| [Hide Flex](#hide-flex) | Hides Flex cards, promotions, transaction actions, settings and navigation. Does not cancel Flex or change the payment source. |  |
+| [Patches menu](#patches-menu) | Adds Patches settings for Hide Flex and hiding selected Launchpad tiles. |  |
+| [Remove Cringe](#remove-cringe) | Plain feature names and copy in English, German, Spanish, French, Italian, Lithuanian and Norwegian. Adds an optional switch in Patches. Keeps Go Back in Time, Magic link, Fronted and Flex. |  |
+
+</details>
+
+<details open>
+<summary>📦 XYZ app&nbsp;&nbsp;•&nbsp;&nbsp;1 patch</summary>
+<br>
+
+**🎯 Supported versions:**
+
+| 2.0.0 | 1.0.2 |
+| :---: | :---: |
+
+| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
+|----------|----------------|-----------|
+| [Example Patch](#example-patch) | Example patch to start with. |  |
+
+</details>
 
 <!-- PATCHES_END -->
 

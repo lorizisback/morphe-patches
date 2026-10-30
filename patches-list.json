@@ -1,5 +1,175 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "0.0.0",
-  "patches": []
+  "version": "1.0.0",
+  "patches": [
+    {
+      "name": "Accept any signing certificate",
+      "description": "Disables Curve's local signing-certificate mismatch check so any APK signing key can be used. Other device checks, login and server integrity remain unchanged.",
+      "default": false,
+      "category": null,
+      "compatiblePackages": [
+        {
+          "packageName": "com.imaginecurve.curve.prd",
+          "name": "Curve Pay",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1C1C1C",
+          "signatures": null,
+          "formFactor": "MOBILE",
+          "targets": [
+            {
+              "version": "5.63.0",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Disable optional telemetry",
+      "description": "Disables known analytics, marketing, crash and performance reporting. Removes Braze promotions and attribution. Account, payment, security and support services still communicate with their servers.",
+      "default": false,
+      "category": null,
+      "compatiblePackages": [
+        {
+          "packageName": "com.imaginecurve.curve.prd",
+          "name": "Curve Pay",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1C1C1C",
+          "signatures": null,
+          "formFactor": "MOBILE",
+          "targets": [
+            {
+              "version": "5.63.0",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Example Patch",
+      "description": "Example patch to start with.",
+      "default": true,
+      "category": null,
+      "compatiblePackages": [
+        {
+          "packageName": "com.example.app",
+          "name": "XYZ app",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#FF0045",
+          "signatures": null,
+          "formFactor": "MOBILE",
+          "targets": [
+            {
+              "version": "2.0.0",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            },
+            {
+              "version": "1.0.2",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Hide Flex",
+      "description": "Hides Flex cards, promotions, transaction actions, settings and navigation. Does not cancel Flex or change the payment source.",
+      "default": false,
+      "category": null,
+      "compatiblePackages": [
+        {
+          "packageName": "com.imaginecurve.curve.prd",
+          "name": "Curve Pay",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1C1C1C",
+          "signatures": null,
+          "formFactor": "MOBILE",
+          "targets": [
+            {
+              "version": "5.63.0",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Patches menu",
+      "description": "Adds Patches settings for Hide Flex and hiding selected Launchpad tiles.",
+      "default": false,
+      "category": null,
+      "compatiblePackages": [
+        {
+          "packageName": "com.imaginecurve.curve.prd",
+          "name": "Curve Pay",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1C1C1C",
+          "signatures": null,
+          "formFactor": "MOBILE",
+          "targets": [
+            {
+              "version": "5.63.0",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Remove Cringe",
+      "description": "Plain feature names and copy in English, German, Spanish, French, Italian, Lithuanian and Norwegian. Adds an optional switch in Patches. Keeps Go Back in Time, Magic link, Fronted and Flex.",
+      "default": false,
+      "category": null,
+      "compatiblePackages": [
+        {
+          "packageName": "com.imaginecurve.curve.prd",
+          "name": "Curve Pay",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1C1C1C",
+          "signatures": null,
+          "formFactor": "MOBILE",
+          "targets": [
+            {
+              "version": "5.63.0",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    }
+  ]
 }
