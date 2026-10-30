@@ -41,7 +41,7 @@ public final class PatchSettings {
 
     public static List<?> addPatchesButton(List<?> items) {
         for (Object item : items) {
-            if (isPatches(item)) return items;
+            if (isPatches(item)) return BatchLaunchpad.add(items);
         }
         try {
             Class<?> action = Class.forName("com.curve.launchpad.model.LaunchpadAction");
@@ -51,7 +51,7 @@ public final class PatchSettings {
                     ITEM_ID, action.getField("NONE").get(null));
             List<Object> result = new ArrayList<>(items);
             result.add(button);
-            return result;
+            return BatchLaunchpad.add(result);
         } catch (ReflectiveOperationException error) {
             throw new IllegalStateException("Curve Launchpad contract changed", error);
         }
@@ -69,6 +69,7 @@ public final class PatchSettings {
     }
 
     public static boolean openIfPatches(Object fragment, Object item) {
+        if (BatchLaunchpad.open(fragment, item)) return true;
         if (!isPatches(item)) return false;
         try {
             Activity activity = (Activity) fragment.getClass().getMethod("requireActivity").invoke(fragment);
