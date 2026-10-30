@@ -127,17 +127,28 @@ final class BatchCurve {
         throw new Exception("Selected card is unavailable for this purchase.");
     }
     static final Map<String,Integer> artworks=new ConcurrentHashMap<>();
+    static final Map<String,String> cardImageUrls=new ConcurrentHashMap<>();
     static Map<String,String> cards() throws Exception {
         Map<String,String> result=new LinkedHashMap<>(); Object db=resolve("com.curve.localstorage.CurveDatabase");
         for(Object c:(List<?>)suspend(call(db,"cardDao"),"fetchCards")) if(!Boolean.TRUE.equals(call(c,"getRemoved"))) {
             Object item=call(c,"getCardItem");
             if(item==null || call(item,"getLastFour")==null) continue;
+            String id=(String)call(c,"getId"),url=(String)call(c,"getImageUrl");
+            if(url!=null && !url.isEmpty()) cardImageUrls.put(id,url); else cardImageUrls.remove(id);
             int art=((Number)call(resolve("com.curve.transactions.gbit.usecase.GetCardImageUseCase"),"invoke",call(item,"getFirstSix"))).intValue();
-            if(art>0) artworks.put((String)call(c,"getId"),art);
+            if(art>0) artworks.put(id,art); else artworks.remove(id);
             String name=(String)call(c,"getNickName"); if(name==null || name.isEmpty()) name=(String)call(c,"getNameOnCard");
             result.put((String)call(c,"getId"),(name==null?"Payment card":name)+" · "+call(call(c,"getCardItem"),"getLastFour"));
         }
         return result;
+    }
+    static void bindCardImage(android.widget.ImageView view,String cardId) throws Exception {
+        Class<?> source=Class.forName("com.curve.transactions.BindingTools$ImageUrlWithDefault");
+        int fallback=artworks.getOrDefault(cardId,0);
+        if(fallback<=0) fallback=view.getResources().getIdentifier("ic_card","drawable",view.getContext().getPackageName());
+        if(fallback<=0) throw new IllegalStateException("Missing Curve card placeholder");
+        Object image=source.getConstructor(String.class,int.class).newInstance(cardImageUrls.get(cardId),fallback);
+        Class.forName("com.curve.transactions.CurveDesignDataBinding").getMethod("setAsyncImageUriWithDefault",android.widget.ImageView.class,source).invoke(null,view,image);
     }
     static void move(String account,String card,String id,java.util.function.BooleanSupplier canSubmit) throws Exception {
         final Object useCase;

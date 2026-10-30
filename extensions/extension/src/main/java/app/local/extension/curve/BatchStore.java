@@ -41,6 +41,9 @@ final class BatchStore {
         }
     }
     JSONObject recover(String account) throws Exception {
+        return recover(account,null);
+    }
+    JSONObject recover(String account,String requestedId) throws Exception {
         synchronized (BatchGbitService.LOCK) {
             JSONObject batch=read();
             if(batch==null) return null;
@@ -48,6 +51,7 @@ final class BatchStore {
                 if(!BatchGbitService.running && isTerminal(batch)) return null;
                 throw new Exception("A batch belongs to a different account. Sign in to that account to review it.");
             }
+            if(requestedId!=null) showResults(batch,requestedId);
             if(!BatchGbitService.running && !isTerminal(batch)) {
                 JSONArray rows=batch.getJSONArray("rows");
                 for(int i=0;i<rows.length();i++) if(rows.getJSONObject(i).getString("state").equals("inflight")) rows.getJSONObject(i).put("state","review");
@@ -60,6 +64,13 @@ final class BatchStore {
     static boolean isTerminal(JSONObject batch) throws JSONException {
         String status=batch.getString("status");
         return (status.equals("complete") || status.equals("archived")) && !unresolved(batch);
+    }
+    static boolean showResults(JSONObject batch,String requestedId) throws Exception {
+        if(requestedId!=null) {
+            if(batch==null || !requestedId.equals(batch.getString("id"))) throw new Exception("These batch results are no longer available. Open Batch GBIT from Launchpad.");
+            return true;
+        }
+        return batch!=null && !isTerminal(batch);
     }
     static boolean unresolved(JSONObject batch) throws JSONException { return BatchRunner.unresolved(batch); }
 }

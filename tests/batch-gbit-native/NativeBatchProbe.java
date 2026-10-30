@@ -127,6 +127,8 @@ public final class NativeBatchProbe extends Instrumentation {
     private void checkCards(Class<?> bridge) throws Exception {
         onMain(()-> {
             Map<String,Integer> art=(Map)get(bridge,"artworks");
+            Map<String,String> imageUrls=(Map)get(bridge,"cardImageUrls");
+            imageUrls.put("card-b","file:///android_asset/morphe_patches.png");
             art.put("card-a",activity.getResources().getIdentifier("card_default_mastercard","drawable",activity.getPackageName()));
             art.put("card-b",activity.getResources().getIdentifier("card_default_visa","drawable",activity.getPackageName()));
             JSONObject quote=new JSONObject().put("charge",new JSONObject().put("minor",1250).put("exponent",2).put("currency","GBP")).put("fees",new JSONArray());
@@ -136,18 +138,71 @@ public final class NativeBatchProbe extends Instrumentation {
         });
         settle();
         onMain(()-> {
-            LinearLayout content=(LinearLayout)get(activity,"content"); HorizontalScrollView carousel=find(content,HorizontalScrollView.class);
-            require(carousel!=null,"Native card carousel missing");
-            carousel.scrollTo(10000,0); int position=carousel.getScrollX(); require(position>0,"Fixture must overflow horizontally");
-            ViewGroup items=(ViewGroup)carousel.getChildAt(0); Button target=find(items.getChildAt(1),Button.class);
+            call(get(activity,"cardCarousel"),"center",1);
+            require(get(activity,"card")==null && !((Button)get(activity,"primary")).isEnabled(),"Card change must disable approval before deferred snapping runs");
+        });
+        for(int i=0;i<30;i++) {
+            settle(); AtomicBoolean selected=new AtomicBoolean(); onMain(()->selected.set("card-b".equals(get(activity,"card")))); if(selected.get()) break;
+        }
+        onMain(()-> {
+            ViewGroup carousel=(ViewGroup)get(activity,"cardCarousel");
+            View targetPage=(View)call(get(carousel,"layout"),"findViewByPosition",1);
+            require(targetPage!=null,"Snapped card page must be visible");
+            require(Math.abs(targetPage.getLeft()+targetPage.getWidth()/2-carousel.getWidth()/2)<=2,"Card must snap to the viewport centre");
+            require(targetPage.getWidth()<carousel.getWidth(),"Card page must fit the viewport with adjacent-card peeks");
+            Button target=find(targetPage,Button.class);
             target.setFocusableInTouchMode(true); require(target.requestFocus(),"Card button must accept focus");
-            target.performClick();
-            require(find(content,HorizontalScrollView.class)==carousel,"Card choice must retain carousel identity");
-            require(carousel.getScrollX()==position && target.hasFocus(),"Card choice must preserve scroll and focus");
+            call(activity,"updateCardSelection");
+            require(get(activity,"cardCarousel")==carousel && target.hasFocus(),"Updating quotes must retain carousel and focus");
             require("card-b".equals(get(activity,"card")),"Card choice must update destination");
             require(((Button)get(activity,"primary")).isEnabled(),"Confirmed card must enable move CTA");
         });
         screenshot("batch-cards.png");
+        View carousel=(View)get(activity,"cardCarousel"); int[] origin=new int[2]; onMain(()->carousel.getLocationOnScreen(origin));
+        int y=origin[1]+carousel.getHeight()/3,from=origin[0]+carousel.getWidth()/5,to=origin[0]+carousel.getWidth()*4/5;
+        try(java.io.InputStream gesture=new ParcelFileDescriptor.AutoCloseInputStream(getUiAutomation().executeShellCommand("input swipe "+from+" "+y+" "+to+" "+y+" 300"))) {
+            while(gesture.read()!=-1) { }
+        }
+        for(int i=0;i<30;i++) {
+            settle(); AtomicBoolean selected=new AtomicBoolean(); onMain(()->selected.set("card-a".equals(get(activity,"card")))); if(selected.get()) break;
+        }
+        onMain(()->require("card-a".equals(get(activity,"card")),"A horizontal swipe must snap and select the adjacent card"));
+    }
+    private void checkNotification(ClassLoader loader) throws Exception {
+        final Notification[] notices=new Notification[2];
+        onMain(()-> {
+            Service service=(Service)loader.loadClass("app.local.extension.curve.BatchGbitService").getConstructor().newInstance();
+            Method attach=ContextWrapper.class.getDeclaredMethod("attachBaseContext",Context.class); attach.setAccessible(true); attach.invoke(service,getTargetContext());
+            service.onCreate();
+            try {
+                notices[0]=(Notification)call(service,"notification",getTargetContext(),"Complete",1,1,false,"fixture-old-batch");
+                notices[1]=(Notification)call(service,"notification",getTargetContext(),"Running",0,1,true,"fixture-new-batch");
+            } finally { service.onDestroy(); }
+        });
+        require(!notices[0].contentIntent.equals(notices[1].contentIntent),"Different batches must retain distinct notification intents");
+        ActivityMonitor monitor=addMonitor("app.local.extension.curve.BatchGbitActivity",null,false);
+        try {
+            notices[0].contentIntent.send(); Activity opened=waitForMonitorWithTimeout(monitor,5000);
+            require(opened!=null,"Notification must open the batch activity");
+            try {
+                require("fixture-old-batch".equals(opened.getIntent().getStringExtra("morphe_batch_id")),"Old notification must retain its own result ID");
+                require(!opened.getPackageManager().getActivityInfo(opened.getComponentName(),0).exported,"Notification results activity must remain private");
+            } finally { runOnMainSync(opened::finish); }
+        } finally { removeMonitor(monitor); }
+    }
+    private void checkMissingArtwork(Class<?> bridge) throws Exception {
+        final ImageView[] image=new ImageView[1];
+        final android.graphics.drawable.Drawable previous=new android.graphics.drawable.ColorDrawable(android.graphics.Color.MAGENTA);
+        onMain(()-> {
+            image[0]=new ImageView(activity); image[0].setImageDrawable(previous);
+            ((LinearLayout)get(activity,"content")).addView(image[0],new LinearLayout.LayoutParams(48,30));
+            call(bridge,"bindCardImage",image[0],"fixture-missing-artwork");
+        });
+        try {
+            AtomicBoolean replaced=new AtomicBoolean();
+            for(int i=0;i<20;i++) { settle(); onMain(()->replaced.set(image[0].getDrawable()!=null && image[0].getDrawable()!=previous)); if(replaced.get()) break; }
+            require(replaced.get(),"Missing artwork must replace a recycled card image with a neutral fallback");
+        } finally { onMain(()->((ViewGroup)image[0].getParent()).removeView(image[0])); }
     }
     private void checkResults() throws Exception {
         onMain(()-> {
@@ -199,7 +254,7 @@ public final class NativeBatchProbe extends Instrumentation {
             activity=startActivitySync(new Intent().setClassName(context.getPackageName(),"app.local.extension.curve.BatchGbitActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             for(int i=0;i<30;i++) { settle(); AtomicBoolean busy=new AtomicBoolean(); onMain(()->busy.set((Boolean)get(activity,"busy"))); if(!busy.get()) break; }
             onMain(()->require(!(Boolean)get(activity,"busy"),"Signed-out activity initialization did not finish"));
-            checkSelection(); checkCards(bridge); checkResults();
+            checkSelection(); checkCards(bridge); checkMissingArtwork(bridge); checkResults(); checkNotification(loader);
             out.putString("stream","PASS Batch native API dates, cancellation, wake lock, stable selection/card controls and completed results\n");
         } catch(Throwable e) { out.putString("stream",android.util.Log.getStackTraceString(e)); finish(0,out); return; }
         finally { if(activity!=null) runOnMainSync(()->activity.finish()); }
