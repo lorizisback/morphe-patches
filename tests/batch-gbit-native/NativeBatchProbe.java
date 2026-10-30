@@ -64,13 +64,17 @@ public final class NativeBatchProbe extends Instrumentation {
         Object[] values=new Object[31];
         values[0]="fixture-one"; values[2]="card-a"; values[3]=1250L; values[4]=2; values[5]="GBP";
         values[9]="Test shop"; values[10]=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneOffset.UTC).format(expected);
-        values[17]="debit"; values[20]=false;
+        values[12]=0; values[17]="debit"; values[20]=false; values[21]="No decline";
         Object purchase=constructor.newInstance(values);
+        Object[] zero=values.clone(); zero[0]="zero-verification"; zero[3]=0L; zero[21]=null;
+        Object[] declined=values.clone(); declined[0]="declined"; declined[12]=10;
+        Object[] moved=values.clone(); moved[0]="already-moved"; moved[25]=values[10]; moved[26]="old-card";
+        Object[] credit=values.clone(); credit[0]="refund"; credit[17]="credit";
         TimeZone previous=TimeZone.getDefault();
         try {
             TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"));
-            JSONArray rows=(JSONArray)call(bridge,"purchases",Collections.singletonList(purchase));
-            require(rows.length()==1,"Native REST purchase must load");
+            JSONArray rows=(JSONArray)call(bridge,"purchases",Arrays.asList(constructor.newInstance(zero),purchase,constructor.newInstance(declined),constructor.newInstance(moved),constructor.newInstance(credit)));
+            require(rows.length()==1 && "fixture-one".equals(rows.getJSONObject(0).getString("id")),"Keep real purchases with reason text; exclude zero verifications, declines, moved purchases and credits");
             require(expected.toString().equals(rows.getJSONObject(0).getString("date")),"Native REST timestamp must preserve UTC");
             require("12.50 GBP".equals(rows.getJSONObject(0).getString("display")),"Native REST amount must survive mapping");
         } finally { TimeZone.setDefault(previous); }

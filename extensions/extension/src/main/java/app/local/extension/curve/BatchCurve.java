@@ -83,13 +83,15 @@ final class BatchCurve {
         Object parser=resolve("com.curve.domain.entity.common.DateTimeParser");
         for(Object tx:history) {
             String id=(String)call(tx,"getId");
-            if(!"debit".equals(call(tx,"getDirection")) || call(tx,"getGbitDate")!=null || call(tx,"getGbitOriginalCardId")!=null || Boolean.TRUE.equals(call(tx,"getP2p")) || call(tx,"getDeclineReason")!=null || !ids.add(id)) continue;
+            Object label=call(tx,"getLabel");
+            // Curve marks declines with label 10; successful purchases can also have declineReason text.
+            if(!"debit".equals(call(tx,"getDirection")) || call(tx,"getGbitDate")!=null || call(tx,"getGbitOriginalCardId")!=null || Boolean.TRUE.equals(call(tx,"getP2p")) || label instanceof Number && ((Number)label).intValue()==10 || !ids.add(id)) continue;
             ZonedDateTime parsed=(ZonedDateTime)call(parser,"parseFullDateTimeOrNull",call(tx,"getTransactionTime"));
             if(parsed==null) continue;
             Instant time=parsed.toInstant();
             if(time.isBefore(Instant.now().minus(Duration.ofDays(120)))) continue;
             Object amount=call(tx,"getAmountValue"),exponent=call(tx,"getAmountExponent");
-            if(amount==null || exponent==null) continue;
+            if(amount==null || exponent==null || ((Number)amount).longValue()<=0) continue;
             rows.put(new JSONObject().put("id",id).put("title",call(tx,"getTitle")).put("date",time.toString()).put("source",call(tx,"getCardId"))
                 .put("display",money(((Number)amount).longValue(),((Number)exponent).intValue(),(String)call(tx,"getCurrencyISO"))).put("state","pending"));
         }
