@@ -33,7 +33,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:title="Hide Flex"
-                app:subtitle="Hide Flex cards, promotions and entry points. Changes apply when Curve reopens. Borrowing and repayments are unchanged."
+                app:subtitle="Hide Flex cards, promotions and shortcuts. Existing borrowing and repayments are unaffected."
                 app:hideDivider="true">
                 <com.curve.design.listItem.ListItemToggle
                     android:id="@+id/morphe_patches_toggle"
@@ -70,7 +70,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:title="Hide selected Launchpad tiles"
-                    app:subtitle="Checked tiles will be hidden after Apply and reopen. Turning this off remembers your selection. Patches always stays visible."
+                    app:subtitle="Hide the checked tiles. Turn this off to show them without clearing your selection. Patches always stays visible."
                     app:hideDivider="true">
                     <com.curve.design.listItem.ListItemToggle
                         android:id="@+id/morphe_launchpad_toggle"
@@ -85,7 +85,7 @@
                 android:layout_marginTop="?attr/spaceX4"
                 android:layout_marginBottom="?attr/spaceX2"
                 android:textAppearance="?attr/textAppearanceSubtitle1"
-                android:text="Choose tiles to hide" />
+                android:text="Tiles to hide" />
             <com.curve.design.panel.Panel
                 android:id="@+id/morphe_launchpad_choices"
                 android:layout_width="match_parent"
@@ -98,7 +98,7 @@
                 android:layout_marginHorizontal="?attr/marginGutter"
                 android:textAppearance="?attr/textAppearanceBody2"
                 android:visibility="gone"
-                android:text="Open Launchpad to load available tiles." />
+                android:text="Open Launchpad to load the list of tiles." />
             <com.curve.design.buttons.CrvButton
                 android:id="@+id/morphe_launchpad_reset"
                 style="@style/Curve.Button.Secondary"
@@ -107,9 +107,16 @@
                 android:minHeight="48dp"
                 android:layout_marginHorizontal="?attr/marginGutter"
                 android:layout_marginTop="?attr/spaceX4"
-                android:text="Reset hidden tiles" />
+                android:text="Reset selection" />
         </LinearLayout>
     </ScrollView>
+    <com.curve.design.text.CrvTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="?attr/marginGutter"
+        android:layout_marginBottom="?attr/spaceX2"
+        android:textAppearance="?attr/textAppearanceBody2"
+        android:text="Save and reopen Curve to apply changes. Go back to discard unsaved changes." />
     <com.curve.design.buttons.ButtonStack
         android:id="@+id/morphe_patches_actions"
         android:layout_width="match_parent"
@@ -119,6 +126,6 @@
             style="@style/Curve.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Apply and reopen" />
+            android:text="Save and reopen" />
     </com.curve.design.buttons.ButtonStack>
 </LinearLayout>

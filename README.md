@@ -2,7 +2,7 @@
 
 A local Kotlin patch project for use with [Morphe](https://github.com/MorpheApp), created from the [official patches template](https://github.com/MorpheApp/morphe-patches-template) at commit `e721536ab19e30d16ce9d31ae1830ca299aad383`.
 
-The included Example Patch targets the template's fictional `com.example.app`. A local fixture APK and dedicated emulator can verify it end to end. The extension descriptor and object-field fingerprint have been corrected. [Curve patches](docs/curve-hide-flex.md) target Curve Pay 5.63.0: Hide Flex, a dedicated Patches screen with Hide Flex and Launchpad tile controls, optional telemetry suppression, optional plain-language copy through Remove Cringe, and optional acceptance of any APK signing certificate during local startup checks.
+[Curve patches](docs/curve-hide-flex.md) target Curve Pay 5.63.0: Hide Flex, a dedicated Patches screen with Flex and Launchpad tile controls, optional telemetry suppression, plain-language copy through Remove Cringe, and optional acceptance of any APK signing certificate during local startup checks. The bundle supports Curve only; the template test app is no longer included.
 
 ## Install through Morphe Manager
 
@@ -28,12 +28,12 @@ export GITHUB_TOKEN="$(gh auth token)"
 
 On another machine, set the Java and SDK paths to their installed locations. The local `local.properties` SDK path is ignored by Git. GitHub authentication needs package-read access; if dependency resolution returns an authentication error, run `gh auth refresh --scopes read:packages` and refresh the environment variables. Credentials also work through `gpr.user` and `gpr.key` in user-level `~/.gradle/gradle.properties`. Keep credentials outside this repository.
 
-The Android patch bundle is written to `patches/build/libs/patches-1.0.0.mpp`. It contains JVM patch classes, Android DEX, and the runtime extension at `extensions/extension.mpe`. A build verifies compilation and packaging. See the [sample end-to-end test](tests/README.md) to verify patching and runtime behavior on the fixture APK.
+The Android patch bundle is written to `patches/build/libs/patches-1.0.0.mpp`. It contains JVM patch classes, Android DEX, and the runtime extension at `extensions/extension.mpe`. A build verifies compilation and packaging. See the [Curve test instructions](tests/README.md) for bytecode and native-screen checks.
 
 ## Development
 
-- Patch code: `patches/src/main/kotlin/app/template/patches`.
-- Runtime extension: `extensions/extension/src/main/java/app/template/extension/extension`.
+- Patch code: `patches/src/main/kotlin/app/local/patches/curve`.
+- Runtime extension: `extensions/extension/src/main/java/app/local/extension/curve`.
 - Bundle identity: `patches/build.gradle.kts`. Repository and issue links target `lorizisback/morphe-patches`.
 - Research and installed-tool details: [workspace setup](docs/workspace-setup.md).
 - Original template instructions and release workflow: [template guide](docs/template-guide.md).

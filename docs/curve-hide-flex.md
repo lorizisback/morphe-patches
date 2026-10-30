@@ -26,7 +26,7 @@ This hides Flex in every state, including active borrowing and loan-management e
 
 ## Patches menu
 
-Select **Patches menu** to add a local Launchpad tile. It includes Hide Flex automatically. The switch defaults to on and saves in a separate private preferences file. **Apply and reopen** saves the choice and starts a fresh activity task so cached screens reload; credentials and app data are retained. Toolbar Back and system Back leave the saved choice unchanged; a draft survives screen recreation. Turning the switch off restores the original Flex behavior; it does not activate borrowing.
+Select **Patches menu** to add a local Launchpad tile. It includes Hide Flex automatically. The switch defaults to on and saves in a separate private preferences file. **Save and reopen** saves the choice and starts a fresh activity task so cached screens reload; credentials and app data are retained. Toolbar Back and system Back leave the saved choice unchanged; a draft survives screen recreation. Turning the switch off restores the original Flex behavior; it does not activate borrowing.
 
 The tile opens a dedicated, non-exported `PatchesActivity`. It uses Curve's AppCompat host, theme, toolbar, panel, settings row, Material switch and button stack. Curve's app-wide passcode and device-state lifecycle observers remain active; the screen has no lock opt-out or external intent filter. The extension compiles against Curve's existing AppCompat 1.8.0 without packaging another AndroidX copy. The tile uses Curve's existing grid, icon loader and label style. Its click is handled locally before Launchpad analytics and server actions. It is appended to a successfully loaded button list, including an empty list; it cannot appear while Launchpad itself is loading or showing an error. Screen copy is currently English. The icon is a transparent PNG generated with the built-in image-generation tool, stored at [`patches.png`](../patches/src/main/resources/curve/patches.png). The exact prompt is embedded in PNG metadata and saved in [`patches.prompt.txt`](../patches/src/main/resources/curve/patches.prompt.txt).
 
@@ -153,7 +153,7 @@ Logs, screenshots, hashes and `verification-summary.json` are in `build/curve-5.
 
 ## Dedicated Patches screen
 
-The screen replaces the original AlertDialog. Its layout is merged by a decoded resource patch, which also registers the activity in the manifest. Resource IDs are resolved from the patched APK at runtime. Only **Apply and reopen** commits the current draft; leaving with either Back action discards it. Rotation and theme recreation retain the draft and any save error. The existing private preferences file is reused, so an installed update retains the Hide Flex choice. The screen retains Curve's original subtitle opacity at the user's explicit preference. Its light-theme explanation measures 3.95:1 contrast; a stronger treatment was tested and reverted at the user's request.
+The screen replaces the original AlertDialog. Its layout is merged by a decoded resource patch, which also registers the activity in the manifest. Resource IDs are resolved from the patched APK at runtime. Only **Save and reopen** commits the current draft; leaving with either Back action discards it. Rotation and theme recreation retain the draft and any save error. The existing private preferences file is reused, so an installed update retains the Hide Flex choice. The screen retains Curve's original subtitle opacity at the user's explicit preference. Its light-theme explanation measures 3.95:1 contrast; a stronger treatment was tested and reverted at the user's request.
 
 [`tests/curve-screen/`](../tests/curve-screen/) contains an emulator-only instrumentation check for the actual screen. It complements the isolated failed-save probe above. This screen has its own build, instrumentation and phone evidence, separate from the earlier dialog validation.
 
@@ -173,7 +173,7 @@ Final APK SHA-256: `8a6bad42d12cd9e88b060aa818c9ce8bb96bfbf4e428e6807e4b4fd87006
 
 ## Hide selected Launchpad tiles
 
-Patches includes a **Hide selected Launchpad tiles** master switch, an inline checklist (checked means hidden) and **Reset hidden tiles**. The master defaults off; turning it off remembers the selected IDs. Reset clears all custom hidden IDs, including IDs no longer in the server list, without changing Hide Flex or the master switch. All changes are drafts until **Apply and reopen**; Back discards them. Drafts survive recreation. Settings commit together, and failed writes restore the previous preference cache.
+Patches includes a **Hide selected Launchpad tiles** master switch, an inline checklist (checked means hidden) and **Reset selection**. The master defaults off; turning it off remembers the selected IDs. Reset clears all custom hidden IDs, including IDs no longer in the server list, without changing Hide Flex or the master switch. All changes are drafts until **Save and reopen**; Back discards them. Drafts survive recreation. Settings commit together, and failed writes restore the previous preference cache.
 
 **Patches always stays visible** and cannot be selected. Filtering runs only inside `LaunchpadFragment.updateUI` immediately before the grid's `submitList`, preserving shared getters, deep-link resolution, ordinary button actions, source-list identity and model order. Only exact Button models with nonempty IDs are eligible. Duplicate IDs share one checklist entry and hide together; unfamiliar server IDs appear normally. The checklist captures IDs/titles before custom filtering, so hidden choices remain available. It stores no activity, view or account model references.
 
@@ -198,10 +198,14 @@ The user subsequently reported failed card selection, card settings and GBIT req
 
 Select **Remove Cringe** in Morphe Manager for plain feature names and descriptions in English (including UK English), German, Spanish, French, Italian, Lithuanian and Norwegian Bokmål. It is optional and not selected by default. Selecting it includes **Patches menu** and that menu's existing Hide Flex dependency; Hide Flex can be turned off inside Patches.
 
-The **Remove Cringe** switch appears only when this patch was included in the APK. It defaults on. Changes are drafts until **Apply and reopen**, share the existing atomic save/rollback flow, survive screen recreation and are discarded by Back. Switching off restores the original resource reads and Launchpad titles.
+The **Remove Cringe** switch appears only when this patch was included in the APK. It defaults on. Changes are drafts until **Save and reopen**, share the existing atomic save/rollback flow, survive screen recreation and are discarded by Back. Switching off restores the original resource reads and Launchpad titles.
 
 The terminology is Backup cards, Spending limits, Currency conversion, Automatic card selection and Features, with translations. Selected promotional headings and FX descriptions are simplified. Go Back in Time, Magic link, Fronted, Flex (including the “Flex FREELY” headline), legal document names and URLs remain unchanged. Cashback timing and the complete geographic exclusions are retained. The reviewed copy lives in `patches/src/main/resources/curve/remove_cringe.json`.
 
 The bytecode patch redirects resource text reads, XML typed-array reads and integer TextView setters to a helper that checks specific resource IDs. Original resources stay intact. Unlisted strings and user text are passed through. Launchpad button display getters additionally translate exact known feature titles; button IDs, actions and original model fields remain unchanged. Unknown server wording, images containing text and web pages are outside this catalog. Translations follow the resource configuration; unsupported languages fall back to English.
 
 Run `python3 tests/check_remove_cringe.py` against the extracted resources for catalog checks. The screen instrumentation covers patch-present/absent variants and all seven languages; the preference probe covers failed-save rollback of the new setting with the existing settings.
+
+## Menu copy and supported apps
+
+The bundle supports Curve only; template app support and its fixture runner have been removed. Patches uses “tiles” consistently, with **Tiles to hide**, **Reset selection** and **Save and reopen**. Descriptions explain each switch; a shared footer explains saving and Back cancellation. Remove Cringe retains its conditional visibility and localized description in all seven languages. Existing preference keys and behavior are unchanged.

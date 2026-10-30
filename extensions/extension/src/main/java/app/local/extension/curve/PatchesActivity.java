@@ -111,12 +111,12 @@ public final class PatchesActivity extends AppCompatActivity {
     private void saveAndReopen() {
         Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
         if (launch == null) {
-            showError("Curve could not be reopened. The setting has not changed.");
+            showError("Could not reopen Curve. Your changes have not been saved.");
             return;
         }
         if (!PatchSettings.saveSettings(toggle.isChecked(), launchpad.isChecked(), hidden,
                 cringe == null ? PatchSettings.isCringeRemoved() : cringe.isChecked())) {
-            showError("The setting could not be saved. Try again.");
+            showError("Could not save your changes. Try again.");
             return;
         }
         apply.setEnabled(false);
@@ -126,7 +126,7 @@ public final class PatchesActivity extends AppCompatActivity {
             startActivity(launch);
             finish();
         } catch (ActivityNotFoundException | SecurityException failure) {
-            showError("Setting saved. Close and reopen Curve to apply it.");
+            showError("Changes saved. Close and reopen Curve to apply them.");
         }
     }
 
