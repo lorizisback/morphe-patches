@@ -225,8 +225,32 @@ public final class PatchesScreenTest extends Instrumentation {
                         "Disabled stale tile must consume its click without opening a screen");
                     require(preferences.edit().putBoolean("batch_gbit", true).commit(), "Could not re-enable fixture");
                     settings.getMethod("initialize", Context.class).invoke(null, context);
-                    require(((java.util.List<?>) settings.getMethod("addPatchesButton", java.util.List.class)
-                        .invoke(null, Collections.emptyList())).size() == 2, "Re-enabling must restore the Batch GBIT tile");
+                    Object first = button.newInstance("First", "fixture://icon", null, "first", none);
+                    Object patches = button.newInstance("Patches", "fixture://icon", null, "morphe_patches", none);
+                    Object last = button.newInstance("Last", "fixture://icon", null, "last", none);
+                    Object stale = button.newInstance("Batch GBIT", "fixture://old-icon", null, "morphe_batch_gbit", none);
+                    java.util.List<?> source = Arrays.asList(first, patches, last, stale, stale);
+                    java.util.List<?> ordered = (java.util.List<?>) settings.getMethod("addPatchesButton", java.util.List.class).invoke(null, source);
+                    require(ordered.size() == 4 && ordered.get(0) == first && ordered.get(2) == patches && ordered.get(3) == last,
+                        "Batch GBIT must precede Patches, remove duplicates and preserve other tile order");
+                    Object tile = ordered.get(1);
+                    require("morphe_batch_gbit".equals(tile.getClass().getMethod("getId").invoke(tile)), "Batch GBIT identity changed");
+                    require("file:///android_asset/morphe_batch_gbit.png".equals(tile.getClass().getMethod("getIconUrl").invoke(tile)),
+                        "Batch GBIT must use its dedicated local icon");
+                    require(source.size() == 5 && source.get(3) == stale, "Reordering must not mutate the source list");
+                    java.util.List<?> repeated = (java.util.List<?>) settings.getMethod("addPatchesButton", java.util.List.class).invoke(null, ordered);
+                    require(repeated.size() == 4 && repeated.get(2) == patches, "Repeated augmentation must retain order without duplicates");
+                    java.util.List<?> empty = (java.util.List<?>) settings.getMethod("addPatchesButton", java.util.List.class).invoke(null, Collections.emptyList());
+                    require(empty.size() == 2 && "morphe_batch_gbit".equals(empty.get(0).getClass().getMethod("getId").invoke(empty.get(0))),
+                        "Empty Launchpad must place Batch GBIT before Patches");
+                    try (java.io.InputStream icon = context.getAssets().open("morphe_batch_gbit.png")) {
+                        android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(icon);
+                        require(bitmap != null, "Dedicated batch icon must decode from the patched APK");
+                        try {
+                            require(bitmap.hasAlpha() && (bitmap.getPixel(0, 0) >>> 24) == 0, "Batch icon must retain transparent padding");
+                            require((bitmap.getPixel(bitmap.getWidth()/2, bitmap.getHeight()/2) >>> 24) != 0, "Batch icon artwork must be visible");
+                        } finally { bitmap.recycle(); }
+                    }
                 }
                 require(preferences.getBoolean("remove_cringe", true) != cringeIncluded, "Apply did not save Cringe choice");
                 require(preferences.getBoolean("hide_launchpad", false)

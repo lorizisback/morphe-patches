@@ -60,7 +60,7 @@ public final class PatchSettings {
         }
     }
 
-    private static boolean isPatches(Object item) {
+    static boolean isPatches(Object item) {
         if (item == null || !item.getClass().getName().equals("com.curve.launchpad.model.LaunchpadItem$Button")) {
             return false;
         }
