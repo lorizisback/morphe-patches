@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/lorizisback/morphe-patches/compare/v1.0.0...v1.0.1) (2026-10-30)
+
+### 🐛 Bug Fixes
+
+* remove test app and clarify patch settings ([27c0b81](https://github.com/lorizisback/morphe-patches/commit/27c0b81d8d2b8edf5beee8a0f8803dffb89cc832))
+
 ## 1.0.0 (2026-10-30)
 
 ### 🐛 Bug Fixes

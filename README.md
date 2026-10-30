@@ -45,7 +45,7 @@ Keep the template's semantic-release workflow for future publication. Do not han
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.0.0](https://github.com/lorizisback/morphe-patches/releases/tag/v1.0.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;6 patches total
+> **[v1.0.1](https://github.com/lorizisback/morphe-patches/releases/tag/v1.0.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;5 patches total
 <details open>
 <summary>📦 Curve Pay&nbsp;&nbsp;•&nbsp;&nbsp;5 patches</summary>
 <br>
@@ -62,21 +62,6 @@ Keep the template's semantic-release workflow for future publication. Do not han
 | [Hide Flex](#hide-flex) | Hides Flex cards, promotions, transaction actions, settings and navigation. Does not cancel Flex or change the payment source. |  |
 | [Patches menu](#patches-menu) | Adds Patches settings for Hide Flex and hiding selected Launchpad tiles. |  |
 | [Remove Cringe](#remove-cringe) | Plain feature names and copy in English, German, Spanish, French, Italian, Lithuanian and Norwegian. Adds an optional switch in Patches. Keeps Go Back in Time, Magic link, Fronted and Flex. |  |
-
-</details>
-
-<details open>
-<summary>📦 XYZ app&nbsp;&nbsp;•&nbsp;&nbsp;1 patch</summary>
-<br>
-
-**🎯 Supported versions:**
-
-| 2.0.0 | 1.0.2 |
-| :---: | :---: |
-
-| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
-|----------|----------------|-----------|
-| [Example Patch](#example-patch) | Example patch to start with. |  |
 
 </details>
 
