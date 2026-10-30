@@ -45,9 +45,9 @@ Keep the template's semantic-release workflow for future publication. Do not han
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.0.1](https://github.com/lorizisback/morphe-patches/releases/tag/v1.0.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;5 patches total
+> **[v1.1.0](https://github.com/lorizisback/morphe-patches/releases/tag/v1.1.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;6 patches total
 <details open>
-<summary>📦 Curve Pay&nbsp;&nbsp;•&nbsp;&nbsp;5 patches</summary>
+<summary>📦 Curve Pay&nbsp;&nbsp;•&nbsp;&nbsp;6 patches</summary>
 <br>
 
 **🎯 Supported versions:**
@@ -58,6 +58,7 @@ Keep the template's semantic-release workflow for future publication. Do not han
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
 | [Accept any signing certificate](#accept-any-signing-certificate) | Disables Curve's local signing-certificate mismatch check so any APK signing key can be used. Other device checks, login and server integrity remain unchanged. |  |
+| [Batch Go Back in Time](#batch-go-back-in-time) | Adds Batch GBIT to Launchpad. Select purchases, choose one funding card and follow sequential moves in a foreground progress notification. Curve eligibility and fees still apply. |  |
 | [Disable optional telemetry](#disable-optional-telemetry) | Disables known analytics, marketing, crash and performance reporting. Removes Braze promotions and attribution. Account, payment, security and support services still communicate with their servers. |  |
 | [Hide Flex](#hide-flex) | Hides Flex cards, promotions, transaction actions, settings and navigation. Does not cancel Flex or change the payment source. |  |
 | [Patches menu](#patches-menu) | Adds Patches settings for Hide Flex and hiding selected Launchpad tiles. |  |

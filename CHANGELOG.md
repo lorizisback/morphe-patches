@@ -1,3 +1,13 @@
+## [1.1.0](https://github.com/lorizisback/morphe-patches/compare/v1.0.1...v1.1.0) (2026-10-30)
+
+### 🐛 Bug Fixes
+
+* harden Batch Go Back in Time execution and UI ([98ebb67](https://github.com/lorizisback/morphe-patches/commit/98ebb673a5cf4245b165ca4ba68e040c8ce363c1))
+
+### ✨ New Features
+
+* add sequential Batch Go Back in Time ([b992edc](https://github.com/lorizisback/morphe-patches/commit/b992edc6609717e12342a425062ab9c40dd981e1))
+
 ## [1.0.1](https://github.com/lorizisback/morphe-patches/compare/v1.0.0...v1.0.1) (2026-10-30)
 
 ### 🐛 Bug Fixes
