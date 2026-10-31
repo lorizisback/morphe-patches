@@ -29,7 +29,7 @@ public final class BatchGbitService extends Service {
         if(intent==null) { stopSelf(); return START_NOT_STICKY; }
         if("stop".equals(intent.getAction())) { stop=true; if(!running) stopSelf(); return START_NOT_STICKY; }
         synchronized(LOCK) { if(running) return START_NOT_STICKY; stop=false; running=true; }
-        try { if(Build.VERSION.SDK_INT>=29) startForeground(NOTICE,notification("Preparing batch",0,0,true),ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC); else startForeground(NOTICE,notification("Preparing batch",0,0,true)); }
+        try { if(Build.VERSION.SDK_INT>=29) startForeground(NOTICE,notification(this,"Preparing batch",0,0,true,intent.getStringExtra("batch")),ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC); else startForeground(NOTICE,notification(this,"Preparing batch",0,0,true,intent.getStringExtra("batch"))); }
         catch(RuntimeException e) { running=false; stopSelf(); return START_NOT_STICKY; }
         executor.execute(()->runBatch(intent.getStringExtra("batch")));
         return START_NOT_STICKY;
@@ -52,13 +52,13 @@ public final class BatchGbitService extends Service {
                 public void move(JSONObject b,JSONObject row) throws Exception { BatchCurve.move(b.getString("account"),b.getString("card"),row.getString("id"),BatchGbitService.this::canSubmit); }
             },store::save,new BatchRunner.Control() {
                 public boolean stopped() { return !canSubmit(); }
-                public void progress(JSONObject b) throws Exception { update(b); }
+                public void progress(JSONObject b) throws Exception { publishStatus(BatchGbitService.this,b); }
             });
         } catch(Exception e) {
             if(batch!=null) try { batch.put("status","paused").put("message",e.getMessage()==null?"Batch stopped. Review before continuing.":e.getMessage()); store.save(batch); } catch(Exception ignored) { /* Existing journal remains the recovery authority. */ }
         } finally {
             releaseWakeLock();
-            if(batch!=null) try { update(batch); } catch(Exception ignored) { }
+            if(batch!=null) try { publishStatus(this,batch); } catch(Exception ignored) { }
             stopForeground(STOP_FOREGROUND_DETACH);
             synchronized(LOCK) { stopSelfResult(latestStartId); running=false; }
             try { BatchCurve.call(BatchCurve.resolve("com.curve.transactions.api.worker.LoadTransactionsWorker"),"invoke"); } catch(Exception ignored) { }
@@ -78,21 +78,25 @@ public final class BatchGbitService extends Service {
         if(wakeLock!=null && wakeLock.isHeld()) wakeLock.release();
         wakeLock=null;
     }
-    private void update(JSONObject batch) throws JSONException {
-        if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED) throw new IllegalStateException("Notification permission changed. Batch paused.");
+    static void publishStatus(Context context,JSONObject batch) throws JSONException {
+        if(Build.VERSION.SDK_INT>=33 && context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED) throw new IllegalStateException("Notification permission changed. Batch paused.");
         JSONArray rows=batch.getJSONArray("rows"); int done=0;
         for(int i=0;i<rows.length();i++) if(rows.getJSONObject(i).getString("state").equals("moved")) done++;
         String text=batch.getString("status").equals("running")?done+" of "+rows.length()+" moved":batch.getString("status").equals("complete")?"Batch complete: "+done+" moved":"Batch paused: "+done+" moved";
-        getSystemService(NotificationManager.class).notify(NOTICE,notification(text,done,rows.length(),batch.getString("status").equals("running")));
+        NotificationManager manager=context.getSystemService(NotificationManager.class);
+        manager.createNotificationChannel(new NotificationChannel(CHANNEL,"Batch Go Back in Time",NotificationManager.IMPORTANCE_LOW));
+        manager.notify(NOTICE,notification(context,text,done,rows.length(),batch.getString("status").equals("running"),batch.getString("id")));
     }
-    private Notification notification(String text,int done,int total,boolean active) {
-        Intent launch=getPackageManager().getLaunchIntentForPackage(getPackageName());
-        // Enter through Curve's normal authentication route, never directly into account details.
-        PendingIntent open=PendingIntent.getActivity(this,NOTICE,launch,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-        Notification.Builder b=new Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_popup_sync).setContentTitle("Batch Go Back in Time")
+    private static Notification notification(Context context,String text,int done,int total,boolean active,String batchId) {
+        // This private activity participates in Curve's application-wide passcode lifecycle.
+        Intent launch=new Intent(context,BatchGbitActivity.class).putExtra(BatchGbitActivity.EXTRA_BATCH_ID,batchId)
+            .setData(new android.net.Uri.Builder().scheme("morphe-batch").authority("status").appendPath(batchId).build())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent open=PendingIntent.getActivity(context,NOTICE,launch,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder b=new Notification.Builder(context,CHANNEL).setSmallIcon(android.R.drawable.ic_popup_sync).setContentTitle("Batch Go Back in Time")
             .setContentText(text).setContentIntent(open).setOnlyAlertOnce(true).setOngoing(active).setVisibility(Notification.VISIBILITY_PRIVATE).setProgress(total,done,total==0);
         if(active) {
-            PendingIntent cancel=PendingIntent.getService(this,NOTICE,new Intent(this,BatchGbitService.class).setAction("stop"),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+            PendingIntent cancel=PendingIntent.getService(context,NOTICE,new Intent(context,BatchGbitService.class).setAction("stop"),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
             b.addAction(new Notification.Action.Builder(null,"Stop after current",cancel).build());
         }
         return b.build();

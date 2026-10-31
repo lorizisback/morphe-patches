@@ -21,7 +21,7 @@ public final class BatchGbitActivity extends AppCompatActivity {
     private final Handler main=new Handler(Looper.getMainLooper());
     private final Set<String> selected=new LinkedHashSet<>();
     private final Map<String,CompoundButton> selectionChecks=new LinkedHashMap<>();
-    private final Map<String,Button> cardButtons=new LinkedHashMap<>();
+    private BatchCardCarousel cardCarousel;
     private JSONArray rows=new JSONArray();
     private Map<String,String> cards=new LinkedHashMap<>();
     private String account,card;
@@ -37,6 +37,7 @@ public final class BatchGbitActivity extends AppCompatActivity {
     private int ageDays;
     private int step=1;
     private boolean busy;
+    static final String EXTRA_BATCH_ID="morphe_batch_id";
     private final Runnable poll=new Runnable() { public void run() { if(step==3 && !busy && (BatchGbitService.running || !terminalBatch())) refreshProgress(); main.postDelayed(this,1500); } };
     public static boolean isIncluded() { return false; }
     int res(String name,String kind) { int id=getResources().getIdentifier(name,kind,getPackageName()); if(id==0) throw new IllegalStateException("Missing Curve resource: "+name); return id; }
@@ -54,10 +55,16 @@ public final class BatchGbitActivity extends AppCompatActivity {
         if(state!=null) selected.addAll(state.getStringArrayList("selection")==null?Collections.emptyList():state.getStringArrayList("selection"));
         work(()-> {
             account=BatchCurve.account(); cards=BatchCurve.cards();
-            batch=new BatchStore(this).recover(account);
-            boolean existing=batch!=null && !"archived".equals(batch.optString("status"));
-            if(existing) step=3;
+            synchronized(BatchGbitService.LOCK) {
+                batch=new BatchStore(this).recover(account,getIntent().getStringExtra(EXTRA_BATCH_ID));
+                if(batch!=null && !BatchGbitService.running) {
+                    try { BatchGbitService.publishStatus(this,batch); } catch(Exception unavailable) { /* Notification access must not block the screen. */ }
+                }
+            }
+            boolean existing=BatchStore.showResults(batch,getIntent().getStringExtra(EXTRA_BATCH_ID));
+            if(existing) { step=3; getIntent().putExtra(EXTRA_BATCH_ID,batch.getString("id")); }
             if(!existing) {
+                requireEnabled();
                 rows=BatchCurve.purchases(BatchCurve.history());
                 if(rows.length()>0) {
                     Integer days=null;
@@ -161,29 +168,19 @@ public final class BatchGbitActivity extends AppCompatActivity {
         },()-> { if(unavailable.isEmpty()) renderCards(); else { renderSelection(); error.setText("Some selected purchases are unavailable. Uncheck the marked purchases, then choose a card again."); } });
     }
     private void renderCards() {
-        step=2; content.removeAllViews(); cardButtons.clear(); description.setText("Choose one card for "+selected.size()+(selected.size()==1?" purchase.":" purchases.")+" Each purchase can only be moved once.");
-        HorizontalScrollView carousel=new HorizontalScrollView(this); LinearLayout items=new LinearLayout(this); items.setOrientation(LinearLayout.HORIZONTAL); carousel.addView(items); content.addView(carousel);
-        for(String c:cards.keySet()) {
-            LinearLayout tile=new LinearLayout(this); tile.setOrientation(LinearLayout.VERTICAL); tile.setPadding(dp(12),dp(12),dp(12),dp(12));
-            try {
-                View art=(View)Class.forName("com.curve.transactions.view.CardCarouselItem").getConstructor(android.content.Context.class).newInstance(this);
-                if(BatchCurve.artworks.containsKey(c)) ((ImageView)BatchCurve.call(art,"getCardImageView")).setImageResource(BatchCurve.artworks.get(c));
-                art.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO); tile.addView(art,new LinearLayout.LayoutParams(dp(180),dp(112)));
-            } catch(Exception e) { /* Native card selector remains usable if artwork cannot load. */ }
-            Button choose=(Button)getLayoutInflater().inflate(res("morphe_batch_button","layout"),tile,false);
-            boolean available=supported.get(c)==selected.size();
-            choose.setEnabled(available); choose.setOnClickListener(v->{if(!busy) { card=c; updateCardSelection(); }}); tile.addView(choose); items.addView(tile); cardButtons.put(c,choose);
-        }
+        step=2; content.removeAllViews(); description.setText("Choose one card for "+selected.size()+(selected.size()==1?" purchase.":" purchases.")+" Each purchase can only be moved once.");
+        Set<String> available=new HashSet<>();
+        for(String id:cards.keySet()) if(supported.getOrDefault(id,0)==selected.size()) available.add(id);
+        try {
+            cardCarousel=new BatchCardCarousel(this,cards,available,card,id->{ if(!busy) { card=id; updateCardSelection(); } });
+        } catch(Exception e) { throw new IllegalStateException("Curve card carousel changed",e); }
+        content.addView(cardCarousel,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));
         cardSummary=new LinearLayout(this); cardSummary.setOrientation(LinearLayout.VERTICAL); content.addView(cardSummary);
         primary.setText("Move "+selected.size()+(selected.size()==1?" purchase":" purchases")); primary.setOnClickListener(v->startBatch());
         secondary.setText("Change selection"); secondary.setOnClickListener(v->renderSelection());
         updateCardSelection();
     }
     private void updateCardSelection() {
-        for(Map.Entry<String,Button> entry:cardButtons.entrySet()) {
-            String c=entry.getKey(); boolean available=supported.get(c)==selected.size();
-            entry.getValue().setText((c.equals(card)?"Selected: ":"")+cards.get(c)+(available?"":"\nAvailable for "+supported.get(c)+" of "+selected.size()));
-        }
         cardSummary.removeAllViews();
         if(card!=null && supported.getOrDefault(card,0)==selected.size()) {
             Map<String,java.math.BigDecimal> totals=new LinkedHashMap<>();
@@ -201,6 +198,7 @@ public final class BatchGbitActivity extends AppCompatActivity {
         primary.setEnabled(card!=null && supported.getOrDefault(card,0)==selected.size());
     }
     private void startBatch() {
+        try { requireEnabled(); } catch(Exception disabled) { error.setText(disabled.getMessage()); return; }
         if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED) { requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},7241); return; }
         if(!getSystemService(NotificationManager.class).areNotificationsEnabled()) { error.setText("Enable Curve notifications in Android settings to follow background progress."); return; }
         final JSONObject request;
@@ -215,18 +213,19 @@ public final class BatchGbitActivity extends AppCompatActivity {
         work(()-> {
             BatchCurve.account(request.getString("account"));
             synchronized(BatchGbitService.LOCK) {
+                requireEnabled();
                 JSONObject old=new BatchStore(this).read();
                 if(BatchGbitService.running || old!=null && !BatchStore.isTerminal(old)) throw new Exception("Review the existing batch first.");
                 batch=request;
                 new BatchStore(this).save(batch);
             }
         },()-> {
-            try { startForegroundService(new Intent(this,BatchGbitService.class).putExtra("batch",batch.getString("id"))); step=3; renderProgress(); }
+            try { startForegroundService(new Intent(this,BatchGbitService.class).putExtra("batch",batch.getString("id"))); getIntent().putExtra(EXTRA_BATCH_ID,batch.getString("id")); step=3; renderProgress(); }
             catch(Exception e) { error.setText("Could not start background work. Reopen Batch GBIT to review."); }
         });
     }
     private void refreshProgress() {
-        work(()-> { BatchCurve.account(account); batch=new BatchStore(this).recover(account); },this::renderProgress);
+        work(()-> { BatchCurve.account(account); JSONObject current=new BatchStore(this).recover(account,getIntent().getStringExtra(EXTRA_BATCH_ID)); BatchStore.showResults(current,getIntent().getStringExtra(EXTRA_BATCH_ID)); batch=current; },this::renderProgress);
     }
     private boolean terminalBatch() {
         try { return batch!=null && BatchStore.isTerminal(batch); }
@@ -252,30 +251,27 @@ public final class BatchGbitActivity extends AppCompatActivity {
         progressBar.setMax(r.length()); progressBar.setProgress(moved);
         updateText(progressMessage,batch.optString("message")); progressMessage.setVisibility(batch.optString("message").isEmpty()?View.GONE:View.VISIBLE);
         for(int i=0;i<r.length();i++) { JSONObject row=r.optJSONObject(i); String s=row.optString("state"); updateText(outcomeViews.get(row.optString("id")),row.optString("title")+" · "+row.optString("display")+"\n"+(s.equals("moved")?"Moved":s.equals("inflight")?"Processing":s.equals("review")?"Needs review":s.equals("failed")?"Rejected by Curve":"Not started")); }
-        primary.setText("Return to Launchpad"); primary.setEnabled(true); primary.setOnClickListener(v->finish());
+        primary.setText("Close"); primary.setEnabled(true); primary.setOnClickListener(v->finish());
         boolean terminal=false;
         try { terminal=BatchStore.isTerminal(batch); } catch(JSONException e) { error.setText("Could not read saved outcomes."); }
         final boolean reviewed=terminal;
         secondary.setText(active?"Stop after current transaction":reviewed?"New batch":"Refresh outcomes");
+        secondary.setEnabled(!reviewed || PatchSettings.isBatchEnabled());
         secondary.setOnClickListener(v->{ if(active) startService(new Intent(this,BatchGbitService.class).setAction("stop")); else if(reviewed) newBatch(); else reconcile(); });
     }
     private void newBatch() {
-        final String id=batch.optString("id");
-        work(()-> {
-            BatchCurve.account(account);
-            synchronized(BatchGbitService.LOCK) {
-                BatchStore store=new BatchStore(this); JSONObject current=store.recover(account);
-                if(BatchGbitService.running || current==null || !id.equals(current.optString("id")) || !BatchStore.isTerminal(current)) throw new Exception("Review the existing batch first.");
-                current.put("status","archived"); store.save(current);
-            }
-        },this::recreate);
+        selected.clear(); card=null; getIntent().removeExtra(EXTRA_BATCH_ID); recreate();
+    }
+    private static void requireEnabled() throws Exception {
+        if(!PatchSettings.isBatchEnabled()) throw new Exception("Batch GBIT is turned off. Enable it in Patches to start a new batch.");
     }
     private void reconcile() {
         work(()-> {
             BatchCurve.account(account); List<?> fresh=BatchCurve.history();
             synchronized(BatchGbitService.LOCK) {
             if(BatchGbitService.running) throw new Exception("The batch is still running.");
-            batch=new BatchStore(this).recover(account); JSONArray r=batch.getJSONArray("rows");
+            JSONObject current=new BatchStore(this).recover(account,getIntent().getStringExtra(EXTRA_BATCH_ID));
+            BatchStore.showResults(current,getIntent().getStringExtra(EXTRA_BATCH_ID)); batch=current; JSONArray r=batch.getJSONArray("rows");
             for(int i=0;i<r.length();i++) {
                 JSONObject row=r.getJSONObject(i); if(!row.getString("state").equals("review")) continue;
                 for(Object tx:fresh) if(row.getString("id").equals(BatchCurve.call(tx,"getId")) && BatchCurve.call(tx,"getGbitDate")!=null && batch.getString("card").equals(BatchCurve.call(tx,"getCardId"))) row.put("state","moved");
@@ -290,7 +286,6 @@ public final class BatchGbitActivity extends AppCompatActivity {
             }
         },this::renderProgress);
     }
-    private int dp(int value) { return Math.round(value*getResources().getDisplayMetrics().density); }
     private void back() { if(busy) { finish(); return; } if(step==2) renderSelection(); else finish(); }
     @Override protected void onResume() { super.onResume(); if(step==3 && !busy) refreshProgress(); main.postDelayed(poll,1500); }
     @Override protected void onPause() { main.removeCallbacks(poll); super.onPause(); }

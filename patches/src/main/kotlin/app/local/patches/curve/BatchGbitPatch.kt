@@ -7,6 +7,8 @@ import app.morphe.patcher.util.returnEarly
 
 private val batchGbitResources = resourcePatch {
     execute {
+        val icon = checkNotNull(object {}.javaClass.getResourceAsStream("/curve/batch_gbit.png"))
+        icon.use { get("assets/morphe_batch_gbit.png", false).writeBytes(it.readBytes()) }
         for (name in listOf("morphe_batch_gbit", "morphe_batch_row", "morphe_batch_text", "morphe_batch_button")) {
             val source = checkNotNull(object {}.javaClass.getResourceAsStream("/curve/$name.xml"))
             source.use { get("res/layout/$name.xml", false).writeBytes(it.readBytes()) }

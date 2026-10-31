@@ -29,7 +29,7 @@ public final class BatchRunnerTest extends Instrumentation {
         public void progress(JSONObject batch) { }
     }
     static JSONObject batch() throws Exception {
-        return new JSONObject().put("status","ready").put("account","account-a").put("rows",new JSONArray()
+        return new JSONObject().put("id","batch-one").put("status","ready").put("account","account-a").put("rows",new JSONArray()
             .put(new JSONObject().put("id","one").put("state","pending"))
             .put(new JSONObject().put("id","two").put("state","pending")));
     }
@@ -59,6 +59,7 @@ public final class BatchRunnerTest extends Instrumentation {
         require(recovered.getJSONArray("rows").getJSONObject(0).getString("state").equals("review"),"Inactive inflight state must be reviewable without reopening");
         try { store.recover("account-b"); throw new AssertionError("Cross-account recovery"); } catch(Exception expected) { }
         require(store.read().getString("account").equals("account-a"),"Cross-account recovery must preserve journal");
+        require(BatchStore.showResults(store.recover("account-a"),null),"Uncertain outcomes must stay in the normal flow");
         for(String terminal:new String[]{"complete","archived"}) {
             JSONObject finished=batch().put("status",terminal);
             for(int i=0;i<finished.getJSONArray("rows").length();i++) finished.getJSONArray("rows").getJSONObject(i).put("state","moved");
@@ -66,10 +67,20 @@ public final class BatchRunnerTest extends Instrumentation {
             require(store.recover("account-b")==null,"Terminal journal must not block or expose another account: "+terminal);
             require(store.read().toString().equals(finished.toString()),"Ignoring another account's result must preserve it");
             require(store.recover("account-a").getString("status").equals(terminal),"Owner must retain terminal results");
+            require(!BatchStore.showResults(store.recover("account-a"),null),"Launchpad must start a fresh flow after a completed batch");
+            require(BatchStore.showResults(store.recover("account-a"),"batch-one"),"Notification must reopen the saved terminal result");
+            require(store.read().toString().equals(finished.toString()),"Fresh entry must retain completed results for the notification");
+            try { BatchStore.showResults(store.recover("account-a"),"old-batch"); throw new AssertionError("Notification opened a different batch"); } catch(Exception expected) { }
+            try { BatchStore.showResults(store.recover("account-b"),"batch-one"); throw new AssertionError("Notification exposed another account's result"); } catch(Exception expected) { }
             finished.getJSONArray("rows").getJSONObject(0).put("state","review"); store.save(finished);
             try { store.recover("account-b"); throw new AssertionError("Uncertain terminal journal crossed accounts"); } catch(Exception expected) { }
             require(store.recover("account-a").getString("status").equals("paused"),"Contradictory terminal journal must require review");
         }
+        require(!BatchStore.showResults(null,null),"No saved batch must open purchase selection");
+        try { BatchStore.showResults(null,"gone-batch"); throw new AssertionError("Missing result silently opened new flow"); } catch(Exception expected) { }
+        JSONObject queued=batch().put("id","new-ready-batch"); store.save(queued);
+        try { store.recover("account-a","old-batch"); throw new AssertionError("Stale notification recovered a new batch"); } catch(Exception expected) { }
+        require(store.read().toString().equals(queued.toString()),"A stale result request must not pause or rewrite a new ready batch");
         new android.util.AtomicFile(base).delete();
     }
     @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }

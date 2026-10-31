@@ -61,6 +61,26 @@
                 </com.curve.design.listItem.ListItem>
             </com.curve.design.panel.Panel>
             <com.curve.design.panel.Panel
+                android:id="@+id/morphe_batch_panel"
+                android:visibility="gone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="?attr/spaceX4"
+                android:layout_marginHorizontal="?attr/marginGutter">
+                <com.curve.design.listItem.ListItem
+                    android:id="@+id/morphe_batch_setting_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:title="Batch Go Back in Time"
+                    app:subtitle="Show Batch GBIT in Launchpad and allow new batches. Existing batches and results remain available from notifications."
+                    app:hideDivider="true">
+                    <com.curve.design.listItem.ListItemToggle
+                        android:id="@+id/morphe_batch_toggle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </com.curve.design.listItem.ListItem>
+            </com.curve.design.panel.Panel>
+            <com.curve.design.panel.Panel
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="?attr/spaceX4"
@@ -78,14 +98,22 @@
                         android:layout_height="wrap_content" />
                 </com.curve.design.listItem.ListItem>
             </com.curve.design.panel.Panel>
-            <com.curve.design.text.CrvTextView
+            <com.curve.design.buttons.CrvButton
+                android:id="@+id/morphe_launchpad_manage"
+                style="@style/Curve.Button.Secondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:minHeight="48dp"
                 android:layout_marginHorizontal="?attr/marginGutter"
                 android:layout_marginTop="?attr/spaceX4"
-                android:layout_marginBottom="?attr/spaceX2"
-                android:textAppearance="?attr/textAppearanceSubtitle1"
-                android:text="Tiles to hide" />
+                android:text="Choose tiles to hide" />
+            <LinearLayout
+                android:id="@+id/morphe_launchpad_picker"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="?attr/spaceX2">
             <com.curve.design.panel.Panel
                 android:id="@+id/morphe_launchpad_choices"
                 android:layout_width="match_parent"
@@ -108,6 +136,7 @@
                 android:layout_marginHorizontal="?attr/marginGutter"
                 android:layout_marginTop="?attr/spaceX4"
                 android:text="Reset selection" />
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
     <com.curve.design.text.CrvTextView

@@ -30,6 +30,7 @@ public final class PatchesScreenTest extends Instrumentation {
     private SharedPreferences preferences;
     private Class<?> settings;
     private boolean cringeIncluded;
+    private boolean batchIncluded;
 
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
@@ -61,10 +62,14 @@ public final class PatchesScreenTest extends Instrumentation {
         cringeIncluded = (Boolean) context.getClassLoader().loadClass("app.local.extension.curve.RemoveCringe")
             .getMethod("isIncluded").invoke(null);
         require(cringeIncluded == Boolean.parseBoolean(arguments.getString("cringe", "false")), "Wrong patch variant installed");
+        batchIncluded = (Boolean) context.getClassLoader().loadClass("app.local.extension.curve.BatchGbitActivity")
+            .getMethod("isIncluded").invoke(null);
+        require(batchIncluded == Boolean.parseBoolean(arguments.getString("batch", "false")), "Wrong Batch GBIT variant installed");
         boolean original = preferences.getBoolean("hide_flex", true);
         try {
             require(preferences.edit().putBoolean("hide_launchpad", false)
-                .putStringSet("hidden_launchpad_tiles", Collections.emptySet()).putBoolean("remove_cringe", true).commit(), "Could not set fixture settings");
+                .putStringSet("hidden_launchpad_tiles", Collections.emptySet()).putBoolean("remove_cringe", true)
+                .putBoolean("batch_gbit", true).commit(), "Could not set fixture settings");
             settings.getMethod("initialize", Context.class).invoke(null, context);
             Class<?> action = context.getClassLoader().loadClass("com.curve.launchpad.model.LaunchpadAction");
             java.lang.reflect.Constructor<?> button = context.getClassLoader()
@@ -109,6 +114,14 @@ public final class PatchesScreenTest extends Instrumentation {
                 require(view("morphe_cringe_panel").getVisibility() == (cringeIncluded ? View.VISIBLE : View.GONE),
                     "Remove Cringe must appear only when included");
                 require(!view("morphe_patches_apply").isEnabled(), "Apply must start disabled");
+                require(view("morphe_batch_panel").getVisibility() == (batchIncluded ? View.VISIBLE : View.GONE),
+                    "Batch GBIT toggle must appear only when included");
+                if (batchIncluded) {
+                    require(batch().isChecked(), "Batch GBIT must default on");
+                    batch().toggle();
+                    require(preferences.getBoolean("batch_gbit", true), "Batch draft saved before Apply");
+                    require(view("morphe_patches_apply").isEnabled(), "Batch draft must enable Apply");
+                }
                 if (cringeIncluded) {
                     require(cringe().isChecked(), "Remove Cringe should default on");
                     requireClass(cringe(), "com.google.android.material.materialswitch.MaterialSwitch");
@@ -121,6 +134,9 @@ public final class PatchesScreenTest extends Instrumentation {
                 require(toggle().isChecked() != original, "Row click must toggle the draft");
                 require(view("morphe_patches_apply").isEnabled(), "Changed draft must enable Apply");
                 require(!master().isChecked(), "Launchpad master must default off");
+                require(!view("morphe_launchpad_picker").isShown(), "Tile checklist must start collapsed");
+                require(view("morphe_launchpad_manage").performClick(), "Choose tiles must be clickable");
+                require(view("morphe_launchpad_picker").isShown(), "Choose tiles must reveal checklist and reset");
                 require(choices().getChildCount() == 2, "Checklist must exclude Patches");
                 requireClass(choice(0), "com.curve.design.checkbox.CrvCheckBox");
                 require("First fixture tile".contentEquals(choice(0).getContentDescription()), "Checkbox must have a label");
@@ -145,6 +161,8 @@ public final class PatchesScreenTest extends Instrumentation {
             onUi(() -> {
                 require(toggle().isChecked() != original, "Recreation lost the draft");
                 if (cringeIncluded) require(!cringe().isChecked(), "Recreation lost Cringe draft");
+                if (batchIncluded) require(!batch().isChecked(), "Recreation lost Batch GBIT draft");
+                require(view("morphe_launchpad_picker").isShown(), "Recreation lost expanded checklist");
                 require(master().isChecked() && choice(0).isChecked(), "Recreation lost Launchpad draft");
                 require(view("morphe_patches_apply").isEnabled(), "Recreated draft must enable Apply");
                 View toolbar = view("morphe_patches_toolbar");
@@ -164,6 +182,8 @@ public final class PatchesScreenTest extends Instrumentation {
                     cringe().toggle();
                 }
                 require(!master().isChecked() && !choice(0).isChecked(), "Back saved Launchpad draft");
+                if (batchIncluded) require(batch().isChecked(), "Toolbar Back saved Batch GBIT draft");
+                require(!view("morphe_launchpad_picker").isShown(), "New visit must collapse checklist");
                 toggle().toggle();
             });
             sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
@@ -176,6 +196,8 @@ public final class PatchesScreenTest extends Instrumentation {
             try {
                 onUi(() -> {
                     require(toggle().isChecked() == original, "System Back saved a canceled draft");
+                    require(view("morphe_launchpad_manage").performClick(), "Choose tiles must expand");
+                    require(!view("morphe_patches_apply").isEnabled(), "Expanding must not change saved settings");
                     choice(0).toggle();
                     require(view("morphe_launchpad_reset").performClick(), "Reset not clickable");
                     require(!choice(0).isChecked() && !choice(1).isChecked(), "Reset did not clear checklist");
@@ -186,10 +208,50 @@ public final class PatchesScreenTest extends Instrumentation {
                         require(cringe().isChecked(), "System Back saved Cringe draft");
                         cringe().toggle();
                     }
+                    if (batchIncluded) { require(batch().isChecked(), "System Back saved Batch GBIT draft"); batch().toggle(); }
                     require(view("morphe_patches_apply").performClick(), "Apply must be clickable");
                 });
                 require(waitForMonitorWithTimeout(relaunch, 10000) != null, "Apply did not relaunch Curve");
                 requireStored(!original);
+                require(preferences.getBoolean("batch_gbit", true) != batchIncluded, "Apply did not save Batch GBIT choice");
+                java.util.List<?> cached = (java.util.List<?>) settings.getMethod("addPatchesButton", java.util.List.class)
+                    .invoke(null, Collections.singletonList(button.newInstance("Batch GBIT", "fixture://icon", null, "morphe_batch_gbit", none)));
+                if (batchIncluded) {
+                    require(cached.size() == 1 && "morphe_patches".equals(cached.get(0).getClass().getMethod("getId").invoke(cached.get(0))),
+                        "Disabled Batch GBIT must remove a cached tile while retaining Patches");
+                    Class<?> helper = context.getClassLoader().loadClass("app.local.extension.curve.BatchLaunchpad");
+                    java.lang.reflect.Method open = helper.getDeclaredMethod("open", Object.class, Object.class); open.setAccessible(true);
+                    require((Boolean) open.invoke(null, null, button.newInstance("Batch GBIT", "fixture://icon", null, "morphe_batch_gbit", none)),
+                        "Disabled stale tile must consume its click without opening a screen");
+                    require(preferences.edit().putBoolean("batch_gbit", true).commit(), "Could not re-enable fixture");
+                    settings.getMethod("initialize", Context.class).invoke(null, context);
+                    Object first = button.newInstance("First", "fixture://icon", null, "first", none);
+                    Object patches = button.newInstance("Patches", "fixture://icon", null, "morphe_patches", none);
+                    Object last = button.newInstance("Last", "fixture://icon", null, "last", none);
+                    Object stale = button.newInstance("Batch GBIT", "fixture://old-icon", null, "morphe_batch_gbit", none);
+                    java.util.List<?> source = Arrays.asList(first, patches, last, stale, stale);
+                    java.util.List<?> ordered = (java.util.List<?>) settings.getMethod("addPatchesButton", java.util.List.class).invoke(null, source);
+                    require(ordered.size() == 4 && ordered.get(0) == first && ordered.get(2) == patches && ordered.get(3) == last,
+                        "Batch GBIT must precede Patches, remove duplicates and preserve other tile order");
+                    Object tile = ordered.get(1);
+                    require("morphe_batch_gbit".equals(tile.getClass().getMethod("getId").invoke(tile)), "Batch GBIT identity changed");
+                    require("file:///android_asset/morphe_batch_gbit.png".equals(tile.getClass().getMethod("getIconUrl").invoke(tile)),
+                        "Batch GBIT must use its dedicated local icon");
+                    require(source.size() == 5 && source.get(3) == stale, "Reordering must not mutate the source list");
+                    java.util.List<?> repeated = (java.util.List<?>) settings.getMethod("addPatchesButton", java.util.List.class).invoke(null, ordered);
+                    require(repeated.size() == 4 && repeated.get(2) == patches, "Repeated augmentation must retain order without duplicates");
+                    java.util.List<?> empty = (java.util.List<?>) settings.getMethod("addPatchesButton", java.util.List.class).invoke(null, Collections.emptyList());
+                    require(empty.size() == 2 && "morphe_batch_gbit".equals(empty.get(0).getClass().getMethod("getId").invoke(empty.get(0))),
+                        "Empty Launchpad must place Batch GBIT before Patches");
+                    try (java.io.InputStream icon = context.getAssets().open("morphe_batch_gbit.png")) {
+                        android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(icon);
+                        require(bitmap != null, "Dedicated batch icon must decode from the patched APK");
+                        try {
+                            require(bitmap.hasAlpha() && (bitmap.getPixel(0, 0) >>> 24) == 0, "Batch icon must retain transparent padding");
+                            require((bitmap.getPixel(bitmap.getWidth()/2, bitmap.getHeight()/2) >>> 24) != 0, "Batch icon artwork must be visible");
+                        } finally { bitmap.recycle(); }
+                    }
+                }
                 require(preferences.getBoolean("remove_cringe", true) != cringeIncluded, "Apply did not save Cringe choice");
                 require(preferences.getBoolean("hide_launchpad", false)
                     && preferences.getStringSet("hidden_launchpad_tiles", Collections.emptySet())
@@ -238,6 +300,11 @@ public final class PatchesScreenTest extends Instrumentation {
 
     private CompoundButton cringe() {
         return (CompoundButton) view("morphe_cringe_row").findViewById(
+            current.getResources().getIdentifier("swiToggle", "id", PACKAGE));
+    }
+
+    private CompoundButton batch() {
+        return (CompoundButton) view("morphe_batch_setting_row").findViewById(
             current.getResources().getIdentifier("swiToggle", "id", PACKAGE));
     }
 
