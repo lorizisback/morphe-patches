@@ -1,3 +1,15 @@
+## [1.2.0](https://github.com/lorizisback/morphe-patches/compare/v1.1.0...v1.2.0) (2026-10-31)
+
+### 🐛 Bug Fixes
+
+* give Batch GBIT its own icon before Patches ([20ea219](https://github.com/lorizisback/morphe-patches/commit/20ea219e641998f48537c6988457916b06b18d70))
+* include valid purchases in Batch Go Back in Time ([abe99e9](https://github.com/lorizisback/morphe-patches/commit/abe99e92152aeaaa1e95260da21af828ff34e752))
+* snap batch cards and reset completed flows ([b5ebdc0](https://github.com/lorizisback/morphe-patches/commit/b5ebdc0743c6652e33aede3ccdcfd3481b77640a))
+
+### ✨ New Features
+
+* add Batch GBIT toggle and collapse tile checklist ([c49dc02](https://github.com/lorizisback/morphe-patches/commit/c49dc02e612dd79ba10c5fb12851a4ecb2d1981d))
+
 ## [1.1.0](https://github.com/lorizisback/morphe-patches/compare/v1.0.1...v1.1.0) (2026-10-30)
 
 ### 🐛 Bug Fixes

@@ -45,7 +45,7 @@ Keep the template's semantic-release workflow for future publication. Do not han
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.1.0](https://github.com/lorizisback/morphe-patches/releases/tag/v1.1.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;6 patches total
+> **[v1.2.0](https://github.com/lorizisback/morphe-patches/releases/tag/v1.2.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;6 patches total
 <details open>
 <summary>📦 Curve Pay&nbsp;&nbsp;•&nbsp;&nbsp;6 patches</summary>
 <br>
